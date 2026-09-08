@@ -439,6 +439,36 @@ function bootSkin(opts = {}) {
   machine.classList.add('booting');
   setTimeout(() => machine.classList.remove('booting'), 1000);
 
+  /* ---- picking up a new version ------------------------------------------
+     The iPad runs from its own cached copy, which is what lets it start with
+     no network. The cost is that a published fix only appears on the SECOND
+     reload — and a machine on a stand is never reloaded, so in practice it
+     would never arrive at all.
+
+     The worker tells us when a newer version has finished downloading, and we
+     restart into it at a moment that cannot cost anyone their pull: nobody
+     registered, nothing spinning, no result on screen. If someone is mid-visit
+     the restart simply waits for them to finish. */
+  let updateWaiting = false;
+
+  function restartIfSafe() {
+    if (!updateWaiting) return;
+    if (guest || m.state !== 'idle' || (gate && gate.open_ && document.activeElement &&
+        document.activeElement.tagName === 'INPUT')) return;
+    leads._note('update', 'Restarting to pick up a new version');
+    location.reload();
+  }
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('message', e => {
+      if (!e.data || e.data.type !== 'cinnamood-updated') return;
+      updateWaiting = true;
+      restartIfSafe();
+    });
+  }
+  // And try again whenever the machine falls back to rest.
+  setInterval(restartIfSafe, 15000);
+
   // Three-finger tap resets a stuck demo without opening the panel.
   window.addEventListener('touchstart', e => { if (e.touches.length === 3) m.reset(); });
 
