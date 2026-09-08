@@ -1,0 +1,1054 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<!-- The name under the icon when staff add this to the iPad's home screen.
+     Without it iOS uses the <title>, which is fine, but this is what they will
+     be looking for on a busy home screen. -->
+<meta name="apple-mobile-web-app-title" content="Cinnamood">
+<meta name="format-detection" content="telephone=no">
+<meta name="theme-color" content="#2A0713">
+<link rel="apple-touch-icon" href="shared/img/icon.png">
+<link rel="icon" href="shared/img/icon.png">
+<title>Cinnamood</title>
+<link rel="stylesheet" href="shared/base.css">
+<style>
+/* ============================================================================
+   APPROACH B — MAISON
+   ----------------------------------------------------------------------------
+   The same machine as a lit vitrine in a dark room: berry lacquer, polished
+   rose metal, and displays that genuinely glow.
+
+   Where Atelier hides its structure inside one material, Maison shows it off —
+   every module is edged in metal, so the cabinet reads as assembled from parts.
+   The darkness does the work: a lit reel window in a dark cabinet has many
+   times the contrast of a bright window in a bright one, which is why this
+   photographs best and is strongest in an evening service.
+
+   The darks are BERRY with black over them, never a new hue — the same way the
+   brand sheet's own black lockup works. A dark screen does show fingerprints
+   and glare far more than cream, which is worth weighing for an open floor.
+   ============================================================================ */
+
+:root{
+  /* Lacquer ramp: berry with black laid over it, never a new hue. */
+  --clay-lit:  #7A1A40;
+  --clay:      #5E1231;
+  --clay-mid:  #430C23;
+  --clay-shade:#300817;
+  --clay-deep: #1F040E;
+  --clay-dark: #120207;
+
+  /* Polished rose metal — the only bright material on the machine. */
+  --metal-hi:  #E9CBCB;
+  --metal:     #D18B8D;
+  --metal-lo:  #6E3B44;
+
+  --sh:        rgba(0,0,0,.72);
+  --sh-soft:   rgba(0,0,0,.4);
+}
+
+body{ background:#120207; }
+
+/* The room: one soft overhead source, and a floor for the cabinet to sit on. */
+.room{
+  position:fixed; inset:0;
+  background:radial-gradient(88% 62% at 50% 22%, #6B1637 0%, #38091C 50%, #120207 100%);
+}
+.room::after{
+  content:''; position:absolute; left:50%; bottom:0; translate:-50% 0;
+  width:150%; height:32%;
+  background:radial-gradient(56% 100% at 50% 100%, rgba(0,0,0,.75), transparent 72%);
+}
+
+/* ---------------------------------------------------------------------------
+   A ROOM THAT'S ALIVE
+   Three very large, very soft blooms drifting on long, mismatched cycles.
+   Individually none is perceptible; together they keep the light slowly
+   changing so the scene never settles into a still image. The periods are
+   deliberately mismatched (37/43/53s) so the pattern doesn't visibly repeat.
+   --------------------------------------------------------------------------- */
+.living{ position:fixed; inset:-20%; pointer-events:none; z-index:0; }
+.living i{
+  position:absolute; display:block; border-radius:50%;
+  filter:blur(80px); opacity:.42; will-change:transform;
+}
+.living i:nth-child(1){
+  width:46vmax; height:46vmax; left:4%; top:6%;
+  background:radial-gradient(circle, rgba(209,139,141,.7), transparent 68%);
+  animation:bloomA 37s ease-in-out infinite;
+}
+.living i:nth-child(2){
+  width:38vmax; height:38vmax; right:2%; top:34%;
+  background:radial-gradient(circle, rgba(243,219,234,.45), transparent 68%);
+  animation:bloomB 43s ease-in-out infinite;
+}
+.living i:nth-child(3){
+  width:52vmax; height:52vmax; left:22%; bottom:-12%;
+  background:radial-gradient(circle, rgba(172,30,85,.6), transparent 70%);
+  animation:bloomC 53s ease-in-out infinite;
+}
+@keyframes bloomA{ 50%{ transform:translate3d(7vmax,5vmax,0) scale(1.14); } }
+@keyframes bloomB{ 50%{ transform:translate3d(-6vmax,-7vmax,0) scale(1.2); } }
+@keyframes bloomC{ 50%{ transform:translate3d(5vmax,-4vmax,0) scale(.88); } }
+/* Reduced motion used to cover ONLY these three background blooms, while the
+   breathing marquee, the shimmering bulb ring, the pulsing payline, the
+   bouncing pull hint and a 370-piece jackpot burst all still ran. The spin
+   itself stays — that's the thing the customer asked for by pulling the lever —
+   but nothing ambient should be moving on its own. */
+@media (prefers-reduced-motion: reduce){
+  .living i,
+  .machine .topbox-light,
+  .machine .bulbs i,
+  .machine .pl-line,
+  .machine .reels,
+  .machine.inviting .pull-hint,
+  .pull-hint span,
+  .machine.booting{
+    animation:none !important;
+  }
+  .machine .bulbs i{ opacity:.62; }
+}
+
+/* Matte grain. Without it the gradients read as plastic; with it, as clay. */
+.grain{
+  position:fixed; inset:-50%; pointer-events:none; z-index:60; opacity:.26;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.86' numOctaves='3'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E");
+  mix-blend-mode:overlay;
+}
+
+.stage{ position:fixed; inset:0; display:grid; place-items:center; }
+/* z-40 is behind the prize card (z-45); z-47 is in front of it, and in front of
+   the countdown ring (z-46) too. Same burst, two planes, card in the middle. */
+#confetti{ position:fixed; inset:0; z-index:40; pointer-events:none; }
+#confettiFront{ position:fixed; inset:0; z-index:47; pointer-events:none; }
+.fit{ transition:filter .7s ease; }
+.machine{
+  position:relative; width:780px; height:1320px;
+}
+
+/* Light the machine spills into the room when it's working. */
+.cab-glow{
+  position:absolute; inset:-8% -14% -4%; z-index:-1; opacity:0;
+  background:radial-gradient(50% 44% at 46% 34%, rgba(172,30,85,.24), transparent 70%);
+  filter:blur(40px); transition:opacity .8s ease;
+}
+.machine.spinning .cab-glow{ opacity:.7; }
+.machine.won .cab-glow{ opacity:1; }
+
+
+/* ---------------------------------------------------------------------------
+   CABINET SHELL
+   --------------------------------------------------------------------------- */
+.cabinet{
+  position:absolute; inset:0 94px 70px 0;
+  border-radius:54px 54px 22px 22px;
+  background:linear-gradient(156deg,
+    var(--clay-lit) 0%, var(--clay) 26%, var(--clay-mid) 62%,
+    var(--clay-shade) 86%, var(--clay-deep) 100%);
+  box-shadow:
+    0 96px 130px -50px var(--sh),
+    0 36px 56px -32px var(--sh-soft),
+    inset 0 2px 0 rgba(243,219,234,.42),
+    inset -30px 0 60px rgba(0,0,0,.45),
+    inset 0 -30px 46px rgba(0,0,0,.42);
+}
+/* Moulded rim light — one line of highlight all the way round the edge. */
+.cabinet::before{
+  content:''; position:absolute; inset:13px; border-radius:44px 44px 14px 14px;
+  box-shadow: inset 0 2px 3px rgba(243,219,234,.4),
+              inset 0 -2px 4px rgba(0,0,0,.5);
+  pointer-events:none;
+}
+
+/* ---------------------------------------------------------------------------
+   TOP BOX — the backlit marquee
+   --------------------------------------------------------------------------- */
+.topbox{
+  position:absolute; top:-16px; left:18px; right:18px; height:258px;
+  border-radius:48px 48px 16px 16px;
+  background:linear-gradient(156deg, var(--clay-lit), var(--clay-mid) 70%, var(--clay-shade));
+  box-shadow:
+    0 20px 34px -14px var(--sh),
+    /* A hard 1px rim, not a soft milky band. This was a 9px-blurred cream
+       highlight at 95% carried over from the cream skin, which on black lacquer
+       read as fog sitting on the top edge rather than as a moulded lip. */
+    inset 0 1.5px 0 rgba(233,203,203,.55),
+    inset 0 -8px 16px rgba(0,0,0,.6);
+}
+.topbox-face{
+  position:absolute; inset:44px;
+  border-radius:12px 12px 8px 8px;
+  display:grid; place-items:center; align-content:center; gap:15px; padding-bottom:12px;
+  overflow:hidden;
+  background:linear-gradient(160deg, #3A0A1E, #1C0410);
+  box-shadow: inset 0 0 44px rgba(0,0,0,.85),
+              0 0 0 2px var(--metal-lo), 0 0 0 3px rgba(0,0,0,.6);
+}
+/* The backlight itself — idles low, comes up while the reels turn. */
+.topbox-light{
+  position:absolute; inset:0;
+  background:radial-gradient(62% 78% at 50% 44%, rgba(209,139,141,.55), transparent 72%);
+  opacity:.5; transition:opacity .6s ease;
+}
+.machine.spinning .topbox-light{ opacity:.92; }
+.machine.won .topbox-light{ opacity:1; }
+
+.brandmark{ position:relative; width:236px; height:auto; display:block; margin-bottom:2px;
+             filter:drop-shadow(0 0 18px rgba(243,219,234,.5)); }
+/* ---- the jackpot block ---------------------------------------------------
+   Set as ONE unit: a small quiet label sitting tight above the prize it names,
+   with the generous space kept OUTSIDE the pair. Previously the label and the
+   prize were spaced the same as everything else in the marquee, so they read as
+   two unrelated lines rather than a caption and its subject.
+
+   Both are optically centred: letter-spacing adds a trailing gap after the last
+   character, which shifts centred type visibly left unless you pad the same
+   amount back onto the front. */
+/* Hairline between the wordmark and the jackpot, so the marquee reads as
+   two labelled zones rather than four stacked lines. */
+.topbox-rule{
+  position:relative; width:168px; height:1px; border-radius:1px;
+  background:linear-gradient(90deg, transparent, var(--metal), transparent);
+}
+.jackpot{
+  position:relative; display:grid; place-items:center; gap:7px; max-width:88%;
+}
+.jp-label{
+  font-family:var(--font-display); font-size:11px; letter-spacing:.46em;
+  text-transform:uppercase; padding-left:.46em; line-height:1;
+  opacity:.75; color:var(--metal);
+}
+.jp-prize{
+  text-transform:uppercase;
+  font-family:var(--font-display); font-size:31px; letter-spacing:.04em;
+  padding-left:.04em; line-height:1.06; text-align:center; color:var(--cream);
+  /* Long prize names wrap rather than overflowing the marquee. */
+  max-width:100%; overflow-wrap:break-word;
+}
+.machine.won .jp-prize{ animation:jpFlash .9s cubic-bezier(.3,.7,.4,1) 1; }
+@keyframes jpFlash{ 50%{ opacity:.35; } }
+
+/* Bulbs around the marquee. */
+/* Centred in the band between the top box's edge and its printed face,
+   so no bulb is ever clipped by the corner radius. */
+/* Centred in the band between the top box's edge and its printed face. */
+.bulbs{ position:absolute; inset:22px; pointer-events:none; }
+.bulbs i{
+  position:absolute; width:15px; height:15px; margin:-7.5px 0 0 -7.5px;
+  border-radius:50%;
+  background:radial-gradient(circle at 35% 30%, var(--cream), var(--blush) 52%, var(--rose));
+  box-shadow:0 0 12px rgba(209,139,141,.6);
+  opacity:.5; transition:opacity .3s ease, box-shadow .3s ease;
+}
+.machine.spinning .bulbs i{ animation:chase .7s cubic-bezier(.1,.85,.3,1) infinite; }
+@keyframes chase{
+  0%,100%{ opacity:1; box-shadow:0 0 20px rgba(246,241,234,.95), 0 0 34px rgba(209,139,141,.7); }
+  50%    { opacity:.42; box-shadow:0 0 6px rgba(209,139,141,.4); }
+}
+.machine.won .bulbs i{ animation:winFlash .3s cubic-bezier(.1,.85,.3,1) 7; }
+@keyframes winFlash{
+  0%,100%{ opacity:1; box-shadow:0 0 24px var(--cream), 0 0 44px var(--rose); }
+  /* Never all the way to `none`. A filament cooling still glows; cutting the
+     shadow outright is what made this read as a graphic blinking. */
+  50%    { opacity:.34; box-shadow:0 0 5px rgba(209,139,141,.5); }
+}
+
+/* ---------------------------------------------------------------------------
+   REEL DECK — heavy bezel around a genuinely deep recess
+   --------------------------------------------------------------------------- */
+/* Cast from the top box onto the cabinet below it.
+
+   On a DARK cabinet a dark shadow is worth almost nothing — this started life as
+   a berry-black gradient and was invisible against #1F040E. Separation on black
+   lacquer comes from the lit edge, not the shadow: the surface catching the key
+   light where it turns away from the module above it. So the gradient runs the
+   other way — a thin warm lift immediately under the top box, falling off fast. */
+.reeldeck::before{
+  content:''; position:absolute; left:2px; right:2px; bottom:100%; height:26px;
+  margin-bottom:-4px; pointer-events:none; z-index:1;
+  background:linear-gradient(180deg,
+    rgba(0,0,0,.55) 0%, rgba(0,0,0,.2) 40%, rgba(209,139,141,.09) 100%);
+}
+
+.reeldeck{ position:absolute; top:262px; left:24px; right:24px; height:410px; }
+
+.bezel{
+  position:absolute; inset:0; border-radius:28px; padding:22px;
+  background:linear-gradient(156deg, var(--metal-hi) 0%, var(--metal) 24%,
+                             var(--metal-lo) 50%, var(--metal) 74%, var(--metal-hi) 100%);
+  box-shadow:
+    0 26px 46px -16px var(--sh),
+    inset 0 1px 1px rgba(246,241,234,.8),
+    inset 0 -1px 1px rgba(0,0,0,.45);
+  transition:box-shadow .55s ease;
+}
+/* Inner lip of the frame, cutting down into the recess. */
+.bezel-inner{
+  position:absolute; inset:22px; border-radius:8px; overflow:hidden; z-index:2;
+  box-shadow:
+    inset 0 18px 30px rgba(0,0,0,.88),
+    inset 0 -10px 18px rgba(0,0,0,.72),
+    inset 16px 0 26px rgba(0,0,0,.62),
+    inset -16px 0 26px rgba(0,0,0,.62),
+    inset 0 0 0 2px rgba(0,0,0,.6);
+}
+.reels{
+  position:absolute; inset:0;
+  display:grid; grid-template-columns:repeat(3,1fr);
+  background:#0B0205;
+}
+.reel{
+  background:linear-gradient(180deg,#1E0410 0%,#4E0E2A 24%,#6B1740 50%,#4E0E2A 76%,#1E0410 100%);
+  /* ENAMEL, not neon.
+
+     `--soft` is the FILL layer on nearly every shape in symbols.js. It used to
+     be berry at 72% opacity, which over a drum that is itself berry-black left
+     almost no value step — the fill disappeared and all you saw was the blush
+     stroke, so every symbol read as a wireframe outline floating on glass
+     rather than as something printed on a drum. Opaque berry gives the fill a
+     surface again, and the blush line then reads as a raised edge on top of it,
+     the way enamel badges actually look. */
+  --ink:var(--blush); --mid:var(--metal); --soft:var(--berry); --pale:var(--cream);
+}
+/* Symbols are lit objects on a lit drum, so they carry their own soft shadow —
+   without it they float a millimetre in front of the reel. */
+.reel .cell svg{ filter:drop-shadow(0 2px 5px rgba(0,0,0,.55)); }
+
+/* Drum curvature. A reel is a cylinder, so the top and bottom of the window
+   must fall away into shadow — this overlay does more for believability than
+   any amount of extra 3D would. */
+.drum-shade{
+  position:absolute; inset:0; pointer-events:none; z-index:4;
+  background:linear-gradient(180deg,
+    rgba(0,0,0,.74) 0%, rgba(0,0,0,.44) 13%, rgba(0,0,0,.12) 30%,
+    rgba(246,241,234,.05) 47%, rgba(246,241,234,.05) 53%,
+    rgba(0,0,0,.12) 70%, rgba(0,0,0,.44) 87%, rgba(0,0,0,.74) 100%);
+}
+/* Physical dividers standing between the drums. */
+.dividers{ position:absolute; inset:0; pointer-events:none; z-index:5; }
+.dividers i{
+  position:absolute; top:0; bottom:0; width:9px; margin-left:-4.5px;
+  background:linear-gradient(90deg,
+    rgba(0,0,0,.85), var(--metal-lo) 32%, var(--metal-hi) 50%,
+    var(--metal-lo) 68%, rgba(0,0,0,.85));
+  box-shadow:0 0 14px rgba(0,0,0,.8);
+}
+.dividers i:nth-child(1){ left:33.333%; }
+.dividers i:nth-child(2){ left:66.667%; }
+
+/* The glass in front of everything. */
+.glass{
+  position:absolute; inset:0; pointer-events:none; z-index:6;
+  background:linear-gradient(116deg,
+    rgba(243,219,234,.24) 0%, rgba(243,219,234,.07) 22%,
+    transparent 42%, transparent 76%, rgba(246,241,234,.1) 100%);
+}
+
+/* Payline — a lit bar straight across the drums with an arrow either side. */
+.payline{
+  position:absolute; top:50%; left:6px; right:6px; translate:0 -50%;
+  z-index:7; pointer-events:none; display:flex; align-items:center; gap:6px;
+}
+.pl-line{
+  flex:1; height:3px; border-radius:2px;
+  background:linear-gradient(90deg, transparent, rgba(172,30,85,.9) 12%,
+             rgba(172,30,85,.9) 88%, transparent);
+  box-shadow:0 0 10px rgba(172,30,85,.5);
+  opacity:.55; transition:opacity .4s ease, box-shadow .4s ease;
+}
+.pl-arrow{
+  width:0; height:0; flex:0 0 auto;
+  border-style:solid; border-width:13px 0 13px 19px;
+  border-color:transparent transparent transparent var(--berry);
+  filter:drop-shadow(0 2px 4px rgba(124,16,57,.42));
+  transition:scale .4s cubic-bezier(.2,.9,.25,1), opacity .4s ease;
+}
+.pl-arrow:last-child{ rotate:180deg; }
+.machine.spinning .pl-line{ opacity:.25; }
+.machine.spinning .pl-arrow{ opacity:.35; scale:.75; }
+.machine.hot .pl-arrow{ scale:1.45; opacity:1; animation:arrowPulse .55s ease-in-out infinite alternate; }
+.machine.hot .pl-line{ opacity:1; box-shadow:0 0 22px rgba(172,30,85,.85); }
+@keyframes arrowPulse{ to{ scale:1.85; } }
+.machine.won .pl-line{ opacity:1; box-shadow:0 0 26px rgba(172,30,85,.9); }
+
+/* Anticipation: the live reel is lifted as well as the others knocked back, so
+   the contrast runs both ways rather than just dimming the screen. The lift
+   itself is defined once, at the bottom of this file, shared with `settling`. */
+.reel{ transition:filter .55s cubic-bezier(.4,0,.2,1); }
+
+/* The deck catches fire while the last drum creeps. Every value here is the
+   RESTING bezel shadow plus a glow — the previous version pasted Atelier's clay
+   highlights onto a rose-metal bezel and, worse, shrank the drop shadow from
+   `0 26px 46px -16px` to `0 16px 30px -12px`, so the deck visibly sat DOWN at
+   the one moment it is supposed to come alive. */
+.machine.hot .bezel{
+  box-shadow:
+    0 26px 46px -16px var(--sh),
+    inset 0 1px 1px rgba(243,219,234,.9),
+    inset 0 -1px 1px rgba(0,0,0,.45),
+    0 0 34px rgba(172,30,85,.42),
+    0 0 84px rgba(172,30,85,.26);
+}
+
+/* ---------------------------------------------------------------------------
+   METERS
+   --------------------------------------------------------------------------- */
+.meters{
+  position:absolute; top:692px; left:40px; right:40px; height:78px;
+  display:grid; grid-template-columns:1fr 1.9fr; gap:14px;
+}
+.meter{
+  border-radius:16px; padding:10px 16px;
+  display:grid; align-content:center; gap:3px;
+  background:linear-gradient(160deg, #2A0612, #120207);
+  box-shadow: inset 0 4px 12px rgba(0,0,0,.9),
+              0 0 0 1.5px var(--metal-lo), 0 2px 6px rgba(0,0,0,.5);
+}
+.m-label{
+  font-family:var(--font-body); font-size:9.5px; letter-spacing:.2em;
+  text-transform:uppercase; color:var(--metal); opacity:.9;
+}
+.m-value{
+  text-transform:uppercase;
+  font-family:var(--font-display); font-size:24px; color:var(--cream);
+  text-shadow:0 0 16px rgba(246,241,234,.6);
+  line-height:1.05; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  transition:scale .3s cubic-bezier(.2,.9,.25,1);
+}
+.m-value.bumped{ scale:1.16; }
+.meter.wide .m-value{ font-size:20px; }
+
+/* ---------------------------------------------------------------------------
+   CONTROL SHELF — overhangs and shadows the belly below it
+   --------------------------------------------------------------------------- */
+.shelf{ position:absolute; top:790px; left:-12px; right:-12px; height:108px; z-index:4; }
+.shelf-top{
+  position:absolute; inset:0 0 34px 0; border-radius:22px;
+  background:linear-gradient(156deg, var(--clay-lit), var(--clay-mid) 62%, var(--clay-deep));
+  box-shadow:
+    0 24px 32px -14px var(--sh),
+    inset 0 2px 0 rgba(243,219,234,.35),
+    inset 0 -8px 14px rgba(0,0,0,.55);
+  display:flex; align-items:center; justify-content:center;
+}
+.btns{ display:flex; gap:16px; }
+.btns i{
+  width:78px; height:32px; border-radius:16px;
+  background:linear-gradient(180deg, var(--metal), var(--clay-mid));
+  opacity:.6;
+  /* Lit from above, dark underneath, with a metal rim — the rim is what you
+     actually read at arm's length on a dark shelf. */
+  box-shadow: 0 0 0 1.5px var(--metal-lo),
+              inset 0 1px 0 rgba(243,219,234,.3),
+              inset 0 -4px 8px rgba(0,0,0,.6),
+              0 4px 9px rgba(0,0,0,.5);
+  /* `opacity` has to be in this list. It wasn't, so the button snapped from .6
+     to 1 in a single frame while its gradient and glow eased over 300ms — the
+     one part of the animation the eye actually tracks was the one part that
+     jumped. */
+  transition:opacity .3s cubic-bezier(.2,.7,.3,1),
+             background .3s cubic-bezier(.2,.7,.3,1),
+             box-shadow .3s cubic-bezier(.2,.7,.3,1);
+}
+/* The three buttons light one at a time as each reel lands — a progress
+   indicator that doesn't look like a progress indicator. */
+.machine.landed0 .btns i:nth-child(1),
+.machine.landed1 .btns i:nth-child(2),
+.machine.landed2 .btns i:nth-child(3){
+  opacity:1; background:linear-gradient(180deg, var(--metal-hi), var(--metal));
+  box-shadow:0 0 0 1.5px var(--metal),
+             0 0 22px rgba(243,219,234,.85),
+             inset 0 1px 0 rgba(246,241,234,.9);
+}
+.shelf-face{
+  position:absolute; left:12px; right:12px; bottom:0; height:40px;
+  border-radius:0 0 16px 16px;
+  background:linear-gradient(180deg, var(--clay-mid), var(--clay-deep));
+  box-shadow:inset 0 1px 0 rgba(233,203,203,.22),
+             inset 0 -10px 16px rgba(0,0,0,.6);
+  display:grid; place-items:center;
+}
+.plate{
+  font-family:var(--font-display); font-size:12px; letter-spacing:.3em;
+  text-transform:uppercase; color:var(--metal-lo); padding-left:.3em;
+}
+
+/* ---------------------------------------------------------------------------
+   BELLY — the paytable, printed on backlit glass
+   --------------------------------------------------------------------------- */
+.belly{
+  position:absolute; top:918px; left:42px; right:42px; height:240px;
+  border-radius:24px; padding:16px;
+  background:linear-gradient(160deg, var(--clay), var(--clay-shade));
+  box-shadow: inset 0 1.5px 0 rgba(233,203,203,.3),
+              inset 0 10px 22px rgba(0,0,0,.7),
+              inset 0 -2px 4px rgba(243,219,234,.1);
+}
+.belly-glass{
+  position:absolute; inset:16px; border-radius:8px; padding:10px 16px;
+  background:radial-gradient(88% 116% at 50% -8%, #6E1740, #2A0714 78%);
+  box-shadow: inset 0 0 40px rgba(0,0,0,.6),
+              inset 0 1px 0 rgba(233,203,203,.22),
+              0 0 0 1.5px var(--metal-lo);
+  display:flex; flex-direction:column; gap:5px;
+}
+.pay-head{
+  font-family:var(--font-display); font-size:11px; letter-spacing:.32em;
+  text-transform:uppercase; color:var(--metal); text-align:center;
+  padding-left:.32em; flex:0 0 auto;
+}
+.paytable{ flex:1; min-height:0; overflow:hidden; display:flex; flex-direction:column; justify-content:space-evenly; }
+.pay-row{ display:flex; align-items:center; gap:12px; padding:2px 6px; border-radius:9px; }
+.pay-row[data-tier="jackpot"]{ background:rgba(243,219,234,.09); }
+.pay-syms{ display:flex; gap:3px; flex:0 0 auto; }
+.pay-sym{
+  width:27px; height:27px; display:block;
+  --ink:var(--blush); --mid:var(--metal); --soft:var(--berry); --pale:var(--cream);
+}
+.pay-sym svg{ width:100%; height:100%; display:block; }
+.pay-name{
+  font-family:var(--font-body); font-size:12.5px; color:var(--blush);
+  opacity:.86; letter-spacing:.02em;
+}
+.pay-row[data-tier="jackpot"] .pay-name{
+  text-transform:uppercase;
+  font-family:var(--font-display); font-size:15px; opacity:1; letter-spacing:.04em;
+  color:var(--cream);
+}
+
+/* ---------------------------------------------------------------------------
+   PAYOUT TRAY — a deep mouth that lights when you win
+   --------------------------------------------------------------------------- */
+.tray{
+  position:absolute; bottom:8px; left:150px; right:150px; height:64px;
+  border-radius:16px; display:grid; place-items:center;
+  background:linear-gradient(180deg, var(--clay-deep), var(--clay-mid));
+  box-shadow: inset 0 5px 12px rgba(0,0,0,.75), 0 0 0 1.5px var(--metal-lo);
+}
+.tray-mouth{
+  width:calc(100% - 26px); height:26px; border-radius:13px;
+  background:linear-gradient(180deg, #080104, #2A0612);
+  box-shadow: inset 0 6px 12px rgba(0,0,0,.95), 0 1px 0 rgba(243,219,234,.24);
+  transition:box-shadow .5s ease;
+}
+.machine.won .tray-mouth{
+  box-shadow: inset 0 6px 10px rgba(58,6,26,.6),
+              inset 0 0 24px rgba(243,219,234,.9),
+              0 0 30px rgba(243,219,234,.6);
+}
+
+/* The base tucks UNDER the cabinet rather than floating below it. */
+.plinth{
+  position:absolute; top:1242px; left:-28px; right:66px; height:70px;
+  border-radius:6px 6px 20px 20px;
+  background:linear-gradient(180deg, var(--clay-mid) 0%, var(--clay-dark) 100%);
+  box-shadow:0 34px 46px -16px rgba(0,0,0,.92), inset 0 1px 0 rgba(243,219,234,.28);
+}
+/* The cabinet's weight, landing on the plinth. Darkest where the two meet and
+   gone within 20px, which is how an occlusion shadow actually falls off. */
+.plinth::before{
+  content:''; position:absolute; left:20px; right:0; top:0; height:22px;
+  border-radius:6px 6px 0 0; pointer-events:none;
+  background:linear-gradient(180deg, rgba(0,0,0,.72), rgba(0,0,0,0));
+}
+
+/* ---------------------------------------------------------------------------
+   LEVER — ball up at rest, pulled down through an arc toward the viewer
+   --------------------------------------------------------------------------- */
+.lever{
+  position:absolute; right:0; top:0; bottom:0; width:230px;
+  touch-action:none; cursor:grab; z-index:12; --lever:0; --fore:1;
+}
+.lever.grabbed{ cursor:grabbing; }
+.lever-mount{
+  position:absolute; left:136px; top:675px; width:74px; height:74px;
+  border-radius:50%;
+  background:radial-gradient(circle at 34% 28%, var(--metal-hi), var(--metal) 46%, var(--metal-lo));
+  box-shadow:0 10px 20px rgba(0,0,0,.7), inset 0 -4px 8px rgba(0,0,0,.42);
+  display:grid; place-items:center;
+}
+/* Contact shadow where the boss meets the cabinet wall. A mounted
+   object with no shadow under it reads as a decal, however well it is shaded. */
+.lever-mount::after{
+  content:''; position:absolute; right:100%; top:8%; width:26px; height:84%;
+  border-radius:50% 0 0 50%; pointer-events:none;
+  background:linear-gradient(270deg, rgba(0,0,0,.6), rgba(0,0,0,0));
+  filter:blur(3px);
+}
+.lever-mount i{
+  width:26px; height:26px; border-radius:50%;
+  background:linear-gradient(160deg, var(--clay-mid), var(--clay-dark));
+  box-shadow:inset 0 2px 4px rgba(0,0,0,.85);
+}
+/* Pivot is the centre of the boss. The arm starts pointing UP and swings down;
+   its height shrinks through the middle of the travel (--fore) so it reads as
+   rotating toward the viewer instead of sweeping flat across the screen. */
+.lever-arm{
+  position:absolute; left:162px; top:701px;
+  width:22px; height:calc(226px * var(--fore)); border-radius:11px;
+  transform-origin:11px 11px;
+  rotate:calc(185deg + var(--lever) * 155deg);
+  /* A TURNED ROD, not a ribbon.
+
+     A cylinder of polished metal has four things across its width, and the old
+     four-stop ramp only had two of them: a dark terminator at each edge where
+     the surface turns away, ONE narrow specular about a third across, and a
+     second much fainter reflection near the far edge where the environment
+     comes back round. Widen the highlight or centre it and the whole thing
+     collapses into a flat painted strip, which is exactly how it read. */
+  background:linear-gradient(90deg,
+    #2E1218 0%,
+    var(--metal-lo) 10%,
+    var(--metal) 26%,
+    var(--metal-hi) 33%,      /* the specular — deliberately narrow */
+    var(--metal) 44%,
+    #7E4750 62%,              /* the shaded belly of the rod */
+    var(--metal) 82%,         /* environment reflection coming back */
+    var(--metal-lo) 92%,
+    #2E1218 100%);
+  box-shadow:0 10px 20px -4px var(--sh-soft),
+             inset 0 2px 2px rgba(233,203,203,.5),      /* lit top cap */
+             inset 0 -10px 14px -6px rgba(0,0,0,.5);    /* falls into the boss */
+}
+/* A travelling glint. The rod is a fixed gradient, so on its own the metal
+   looks painted on — the highlight has to move as the arm swings or the eye
+   never believes the surface is curved. Driven by --pull, which the lever
+   already writes every frame and which nothing was reading. */
+.lever-arm::after{
+  content:''; position:absolute; inset:1px 2px; border-radius:10px;
+  pointer-events:none;
+  background:linear-gradient(180deg,
+    rgba(246,241,234,0) 0%,
+    rgba(246,241,234,.5) 50%,
+    rgba(246,241,234,0) 100%);
+  opacity:calc(.25 + var(--pull, 0) * .55);
+  translate:0 calc((var(--pull, 0) - .5) * 60%);
+}
+.knob{
+  position:absolute; left:50%; bottom:-38px; translate:-50% 0;
+  width:76px; height:76px; border-radius:50%;
+  background:radial-gradient(circle at 33% 27%, var(--cream) 0%, var(--cream) 24%, var(--blush) 56%, var(--metal) 100%);
+  box-shadow: 0 16px 30px rgba(0,0,0,.72),
+              inset 0 -8px 16px rgba(110,59,68,.45),
+              0 0 34px rgba(246,241,234,.3);
+  transition:filter .5s ease;
+}
+.knob i{
+  position:absolute; left:21%; top:16%; width:24px; height:17px;
+  border-radius:50%; background:rgba(246,241,234,.6); filter:blur(3px);
+}
+.machine.locked .knob{ filter:grayscale(.5) brightness(.72); }
+/* Locked no longer means dead — reaching for the lever with no details on
+   file opens the form, so this is a pointer, not a barred sign. */
+.machine.locked .lever{ cursor:pointer; }
+
+.pull-hint{
+  /* The only column free of the cabinet is x>686, and the lever occupies it
+     from the ball down to the mount. So the hint goes just ABOVE the ball —
+     which also reads correctly, since that's the direction of travel. */
+  position:absolute; right:4px; width:92px; top:384px; z-index:13; text-align:center;
+  font-family:var(--font-display); font-size:16px; letter-spacing:.16em;
+  color:var(--cream); opacity:0; white-space:nowrap; transition:opacity .6s ease;
+  text-shadow:0 0 18px rgba(246,241,234,.6);
+}
+.machine.inviting .pull-hint{ opacity:.78; animation:breathe 2.6s ease-in-out infinite; }
+@keyframes breathe{ 50%{ opacity:.3; translate:0 -6px; } }
+.pull-hint span{ display:block; margin-top:4px; font-size:1.35em; animation:nudge 2.6s ease-in-out infinite; }
+@keyframes nudge{ 50%{ translate:0 8px; } }
+
+/* ---------------------------------------------------------------------------
+   REVEAL
+   --------------------------------------------------------------------------- */
+.veil{
+  position:fixed; inset:0; z-index:30; pointer-events:none; opacity:0;
+  background:radial-gradient(70% 54% at 50% 44%, rgba(94,18,49,.66), rgba(12,2,6,.96));
+  transition:opacity .7s ease;
+}
+.revealing .veil{ opacity:1; }
+.revealing .fit{ filter:blur(9px) brightness(.5); }
+.machine{ transition:scale .9s cubic-bezier(.2,.9,.25,1); }
+.revealing .machine{ scale:.955; }
+
+.reveal{ position:fixed; inset:0; z-index:45; display:grid; place-items:center;
+         pointer-events:none; padding:5vmin; }
+.card{
+  position:relative; text-align:center; max-width:min(680px,88vw);
+  padding:clamp(28px,5vmin,56px) clamp(30px,6vmin,70px) clamp(32px,5.5vmin,60px);
+  border-radius:clamp(20px,3vmin,34px);
+  /* Lit berry glass in a rose-metal surround — the same two materials the
+     reel window is made of, so the prize arrives on a panel that belongs to
+     this machine rather than on a floating block of text. */
+  background:radial-gradient(120% 100% at 50% -10%, #6E1740, #2A0714 76%);
+  box-shadow:
+    0 0 0 1.5px var(--metal-lo),
+    0 0 0 3px rgba(0,0,0,.55),
+    inset 0 1px 0 rgba(233,203,203,.3),
+    inset 0 0 60px rgba(0,0,0,.5),
+    0 50px 90px -30px rgba(0,0,0,.85),
+    0 0 90px rgba(172,30,85,.35);
+  opacity:0; translate:0 60px; scale:.9;
+  transition:opacity .5s cubic-bezier(.4,0,.2,1),
+             translate .8s cubic-bezier(.16,1,.3,1),
+             scale .8s cubic-bezier(.16,1,.3,1);
+}
+/* A highlight raking the panel, the same one that crosses the reel glass. */
+.card::after{
+  content:''; position:absolute; inset:0; border-radius:inherit;
+  pointer-events:none; overflow:hidden;
+  background:linear-gradient(104deg,
+    transparent 38%, rgba(233,203,203,.14) 50%, transparent 62%);
+}
+.revealing .card{ opacity:1; translate:0 0; scale:1; }
+
+/* The children arrive in sequence instead of as one rigid block. 70ms apart —
+   below that it reads as simultaneous, above it starts to feel slow. */
+.card-kicker,.card-title,.card-sub,.card-claim{
+  opacity:0; translate:0 14px;
+}
+.revealing .card-kicker,
+.revealing .card-title,
+.revealing .card-sub,
+.revealing .card-claim{
+  animation:cardIn .6s cubic-bezier(.16,1,.3,1) both;
+}
+.revealing .card-kicker{ animation-delay:.26s }
+.revealing .card-title { animation-delay:.33s }
+.revealing .card-sub   { animation-delay:.40s }
+.revealing .card-claim { animation-delay:.50s }
+@keyframes cardIn{ to{ opacity:1; translate:0 0; } }
+.card-sym{
+  width:clamp(150px,26vmin,260px); aspect-ratio:1; margin:0 auto 4vmin;
+  --ink:var(--cream); --mid:var(--metal); --soft:rgba(172,30,85,.8); --pale:var(--blush);
+  filter:drop-shadow(0 0 60px rgba(243,219,234,.45));
+}
+.revealing .card-sym{ animation:landSym 1.1s cubic-bezier(.16,1,.3,1) .1s both; }
+@keyframes landSym{
+  0%{ scale:.5; rotate:-14deg; opacity:0 } 62%{ scale:1.08; rotate:3deg; opacity:1 }
+  100%{ scale:1; rotate:0deg; opacity:1 }
+}
+.card-sym svg{ width:100%; height:100%; }
+.card-kicker{
+  font-family:var(--font-display); font-size:clamp(13px,2.1vmin,19px);
+  letter-spacing:.42em; text-transform:uppercase; color:var(--metal);
+  margin-bottom:2.2vmin; padding-left:.42em;
+}
+.card-title{
+  text-transform:uppercase;
+  font-family:var(--font-display); color:var(--cream);
+  text-shadow:0 0 70px rgba(246,241,234,.45);
+  font-size:clamp(40px,9.4vmin,104px); line-height:.98; letter-spacing:.02em;
+}
+.card-sub{
+  font-family:var(--font-body); color:var(--blush); opacity:.75;
+  font-size:clamp(13px,2.3vmin,20px); margin-top:2.4vmin;
+}
+.card-sub:empty{ display:none; }
+.card-claim{
+  display:inline-block; margin-top:5vmin; padding:1.5vmin 4vmin;
+  border:0; border-radius:999px;
+  background:linear-gradient(180deg, rgba(209,139,141,.22), rgba(172,30,85,.16));
+  box-shadow:0 0 0 1.5px var(--metal-lo),
+             inset 0 1px 0 rgba(233,203,203,.35),
+             0 6px 18px rgba(0,0,0,.5);
+  font-family:var(--font-body); font-size:clamp(11px,1.8vmin,15px);
+  letter-spacing:.14em; text-transform:uppercase; color:var(--blush); opacity:.85;
+}
+/* The miss keeps its dignity but takes up less room — a loss that shouts as
+   loudly as a win reads as mockery, and there's a queue behind this person. */
+.reveal.miss .card-title{ color:var(--metal); text-shadow:none; font-size:clamp(30px,6.6vmin,70px); }
+.reveal.miss .card{
+  background:radial-gradient(120% 100% at 50% -10%, #3A0A20, #1A040D 76%);
+  box-shadow:0 0 0 1.5px rgba(110,59,68,.6),
+             inset 0 1px 0 rgba(233,203,203,.14),
+             inset 0 0 60px rgba(0,0,0,.55),
+             0 40px 70px -30px rgba(0,0,0,.8);
+}
+.reveal.miss .card-kicker{ color:var(--metal); opacity:.6; }
+.reveal.miss .card-sub{ color:var(--metal); }
+.reveal.miss .card-sym{
+  width:clamp(96px,17vmin,168px); opacity:.6; filter:none;
+  --ink:var(--metal); --mid:var(--metal-lo); --soft:transparent; --pale:transparent;
+}
+
+.ring{ position:fixed; left:50%; translate:-50% 0; z-index:46;
+       bottom:calc(4.5vmin + env(safe-area-inset-bottom, 0px));
+       width:46px; height:46px; opacity:0; transition:opacity .5s ease .8s; }
+.revealing .ring{ opacity:.5; }
+.ring circle{ fill:none; stroke:var(--blush); stroke-width:2.5; stroke-linecap:round;
+  transform:rotate(-90deg); transform-origin:center; }
+.ring .bg{ opacity:.16; }
+.ring .fg{ stroke-dasharray:126; }
+.revealing .ring .fg{ animation:drain linear forwards; animation-duration:var(--hold,10s); }
+@keyframes drain{ to{ stroke-dashoffset:126 } }
+.tap-on{ pointer-events:auto; }
+
+/* ---- furniture ----------------------------------------------------------- */
+.mute{
+  /* The viewport is `viewport-fit=cover`, so on an iPad added to the home
+     screen this corner sits under the home indicator and the button becomes
+     hard to hit and easy to mistake for a system control. The insets push it
+     clear; they resolve to 0 everywhere that has no inset. */
+  position:fixed; z-index:70;
+  bottom:calc(18px + env(safe-area-inset-bottom, 0px));
+  right:calc(18px + env(safe-area-inset-right, 0px));
+  width:46px; height:46px;
+  border-radius:50%; border:0; cursor:pointer; background:rgba(246,241,234,.1);
+  color:var(--blush); display:grid; place-items:center; opacity:.5;
+}
+.mute svg{ width:21px; height:21px; }
+/* A 46px control is under Apple's 44pt minimum once you account for the ring
+   of dead space around it. The button stays the size it looks; the TOUCH area
+   is grown past it, which is the part that matters on glass. */
+.mute::after{
+  content:''; position:absolute; inset:-9px; border-radius:50%;
+}
+.wordmark{
+  position:fixed; left:3.4vw; top:50%; translate:0 -50%; z-index:5;
+  writing-mode:vertical-rl; font-family:var(--font-display);
+  font-size:clamp(11px,1.5vmin,15px); letter-spacing:.6em; text-transform:uppercase;
+  color:var(--metal); opacity:0; transition:opacity .6s;
+}
+.tagline{
+  text-transform:uppercase;
+  position:fixed; right:3.4vw; bottom:6vh; z-index:5; text-align:right;
+  font-family:var(--font-display); font-size:clamp(15px,2.4vmin,26px);
+  letter-spacing:.14em; color:var(--metal); opacity:0; line-height:1.5;
+  transition:opacity .6s;
+}
+body.wide .wordmark, body.wide .tagline{ opacity:.6; }
+.revealing .wordmark, .revealing .tagline{ opacity:0 !important; }
+
+/* ===========================================================================
+   IDLE LIFE & DEPTH
+   ---------------------------------------------------------------------------
+   A machine at rest should still be breathing. None of this is meant to be
+   noticed on its own — it's meant to stop the cabinet reading as a screenshot
+   of a machine. Everything here pauses the moment a spin starts, so the idle
+   state never competes with the choreography.
+   =========================================================================== */
+
+/* The cabinet arrives rather than just being there.
+
+   ONE-SHOT, and it has to be. This used to sit on the bare `.machine` selector,
+   which looks harmless until you notice that `knock0/1/2` and `won` each set the
+   same `animation` longhand on the same element. Removing one of those classes
+   didn't clear the animation — it revealed this one again, so the whole cabinet
+   re-dropped 24px at the start of every spin and again after every reveal.
+   `.booting` is removed by skin.js once it has played, so it can never come back. */
+@keyframes settleIn{ from{ opacity:0; translate:0 24px; } to{ opacity:1; translate:0 0; } }
+.machine.booting{ animation:settleIn .9s cubic-bezier(.2,.9,.25,1) both; }
+
+/* Marquee backlight breathes slowly at rest. */
+@keyframes marqueeBreath{ 0%,100%{ opacity:.46 } 50%{ opacity:.68 } }
+.machine:not(.spinning):not(.won) .topbox-light{
+  animation:marqueeBreath 5.5s ease-in-out infinite;
+}
+
+/* Bulbs shimmer out of sync at rest, so the ring never looks switched off.
+   Three different periods stop the whole ring pulsing as one block. */
+@keyframes bulbShimmer{ 0%,100%{ opacity:.38 } 50%{ opacity:.74 } }
+.machine:not(.spinning):not(.won) .bulbs i{ animation:bulbShimmer 4.2s ease-in-out infinite; }
+.machine:not(.spinning):not(.won) .bulbs i:nth-child(5n+1){ animation-duration:5.3s; animation-delay:-1.7s; }
+.machine:not(.spinning):not(.won) .bulbs i:nth-child(5n+2){ animation-duration:6.7s; animation-delay:-3.1s; }
+.machine:not(.spinning):not(.won) .bulbs i:nth-child(5n+3){ animation-duration:3.9s; animation-delay:-0.6s; }
+.machine:not(.spinning):not(.won) .bulbs i:nth-child(5n+4){ animation-duration:5.9s; animation-delay:-4.4s; }
+
+/* The drums settling in their detents while nobody is playing.
+
+   Applied to `.reels`, deliberately — the strip inside it has its transform
+   rewritten every frame by the engine, so anything animated there is wiped on
+   the next tick. The container is untouched by JS and moving it moves all three
+   drums together, which is what a real cabinet does when its mechanism creaks.
+
+   It is 1.5px and most people will never consciously see it. That's the point:
+   a machine at rest that is perfectly still reads as a photograph of a machine. */
+@keyframes drumSettle{
+  0%, 88%, 100%{ translate:0 0; }
+  92%          { translate:0 1.5px; }
+  96%          { translate:0 -.6px; }
+}
+.machine:not(.spinning):not(.won) .reels{
+  animation:drumSettle 13s cubic-bezier(.3,.7,.4,1) infinite;
+}
+
+/* The payline glows very gently while it waits. */
+@keyframes lineBreath{ 0%,100%{ opacity:.42 } 50%{ opacity:.72 } }
+.machine:not(.spinning):not(.hot):not(.won) .pl-line{
+  animation:lineBreath 4.6s ease-in-out infinite;
+}
+
+/* CONTACT SHADOWS. The modules already sit at different depths; these are the
+   shadows they should be throwing onto whatever is directly beneath them, which
+   is what stops the stack reading as decals on one flat face. */
+.shelf{ overflow:visible; }
+.shelf::after{
+  content:''; position:absolute; left:22px; right:22px; top:100%; height:38px;
+  pointer-events:none; z-index:-1;
+  background:linear-gradient(180deg,
+    rgba(0,0,0,.6) 0%, rgba(0,0,0,.22) 45%, rgba(209,139,141,.07) 100%);
+  border-radius:0 0 24px 24px;
+}
+/* The prize you just won, lighting up where it's printed on the machine. */
+.pay-row{ transition:background .5s cubic-bezier(.4,0,.2,1); }
+.pay-row.paid{
+  background:rgba(172,30,85,.5);
+  animation:paidGlow 1.5s cubic-bezier(.3,.7,.4,1) 2;
+}
+@keyframes paidGlow{
+  0%,100%{ box-shadow:0 0 0 0 rgba(233,203,203,0); }
+  40%    { box-shadow:0 0 16px 1px rgba(233,203,203,.45); }
+}
+.pay-row.paid .pay-name{ opacity:1; color:var(--cream); }
+
+.bezel{ z-index:2; }
+.meters{ z-index:1; }
+
+/* A win lifts the whole cabinet a touch — the machine reacting, not just the
+   overlay. Short and small on purpose.
+
+   Applied to .cabinet, NOT .machine. On .machine it had identical specificity to
+   `.machine.knock2{animation:knock}` and sat later in the source, so the moment a
+   win was declared it replaced the third reel's landing knock — the win silently
+   ate the very thump that tells you the reel arrived. Splitting them by element
+   also splits them by property: .machine moves (translate), the cabinet swells
+   (scale), and the two can now run at once because nothing overwrites anything. */
+@keyframes winLift{
+  0%{ scale:1 } 30%{ scale:1.012 } 100%{ scale:1 }
+}
+.machine.won .cabinet{ animation:winLift .7s cubic-bezier(.2,.9,.25,1); }
+
+/* ===========================================================================
+   THE WIN MOMENT
+   ---------------------------------------------------------------------------
+   Replaces the corner bolts as the thing that draws the eye to the window. A
+   ring of light blooms out of the reel deck and a highlight sweeps across the
+   glass, twice — the machine reacting, not just the overlay that follows it.
+   =========================================================================== */
+.reeldeck::after{
+  content:''; position:absolute; inset:-8px; border-radius:40px;
+  pointer-events:none; z-index:3; opacity:0;
+}
+.machine.won .reeldeck::after{ animation:winRing 1.1s cubic-bezier(.2,.8,.3,1) 1; }
+@keyframes winRing{
+  0%   { opacity:0; scale:.985;
+         box-shadow:0 0 0 0 rgba(172,30,85,.55), 0 0 0 0 rgba(172,30,85,.4); }
+  22%  { opacity:1; scale:1.006;
+         box-shadow:0 0 0 4px rgba(172,30,85,.5), 0 0 66px 12px rgba(172,30,85,.55); }
+  100% { opacity:0; scale:1.03;
+         box-shadow:0 0 0 16px rgba(172,30,85,0), 0 0 90px 26px rgba(172,30,85,0); }
+}
+
+/* A hard highlight travelling across the glass, like light raking a real pane. */
+.glass::after{
+  content:''; position:absolute; inset:0; pointer-events:none;
+  background:linear-gradient(104deg,
+    transparent 34%, rgba(233,203,203,.55) 50%, transparent 66%);
+  translate:-130% 0; opacity:0;
+}
+.machine.won .glass::after{ animation:winSweep .82s cubic-bezier(.32,.7,.35,1) .08s 1; }
+@keyframes winSweep{
+  0%  { translate:-130% 0; opacity:0 }
+  18% { opacity:1 }
+  100%{ translate:130% 0; opacity:0 }
+}
+
+/* The payline flares rather than just brightening. */
+.machine.won .pl-arrow{ animation:winArrow .34s cubic-bezier(.3,.8,.4,1) 3 alternate; }
+@keyframes winArrow{ to{ scale:1.5; } }
+
+/* ---- the last reel settling ----------------------------------------------
+   Everything except the live reel quiets down while the final drum creeps in,
+   so the eye has nowhere else to go. Purely subtractive: nothing new appears,
+   the surroundings just step back. */
+.machine.settling .topbox-face,
+.machine.settling .meters,
+.machine.settling .belly,
+.machine.settling .shelf{ filter:saturate(.72) brightness(.97); }
+
+/* Dimming the bulbs has to be done to the CHASE, not to the element. `settling`
+   only ever coexists with `spinning`, and the running `chase` animation writes
+   `opacity` in its own keyframes — so a plain `opacity:.34` here was outranked
+   and the ring never dimmed at all. Slowing and damping the chase itself is also
+   truer: the machine isn't switching its lights off, it's holding its breath. */
+.machine.settling .bulbs i{ animation-duration:1.6s; filter:brightness(.5) saturate(.7); }
+
+/* Reel 2's lift lives here and ONLY here. `.machine.hot .reel[data-reel="2"]`
+   used to set its own filter, but `hot` and `settling` are raised by the same
+   callback, so that rule was always overridden by this one and its contrast()
+   was silently dropped. One rule, one owner. */
+.machine.settling .reel[data-reel="2"],
+.machine.hot .reel[data-reel="2"]{
+  filter:saturate(1.14) contrast(1.05) brightness(1.04);
+}
+.topbox-face,.meters,.belly,.shelf{
+  transition:filter .6s cubic-bezier(.4,0,.2,1);
+}
+.bulbs i{ transition:filter .6s cubic-bezier(.4,0,.2,1); }
+</style>
+</head>
+<body>
+
+<div class="room"></div>
+<div class="living"><i></i><i></i><i></i></div>
+<div class="veil"></div>
+<div class="wordmark">Pull your luck</div>
+<div class="tagline">One pull.<br>One mood.</div>
+
+<div class="stage">
+  <div class="fit" id="fit"><div class="machine" id="machine"></div></div>
+</div>
+
+<canvas id="confetti"></canvas>
+<!-- The same burst, split across two planes with the prize card between them.
+     A third of the pieces fly in FRONT of the card, which is the difference
+     between confetti happening in the room and confetti printed on a backdrop. -->
+<canvas id="confettiFront"></canvas>
+
+<div class="reveal" id="reveal">
+  <div class="card">
+    <div class="card-sym" id="cardSym"></div>
+    <div class="card-kicker" id="cardKicker">You won</div>
+    <h1 class="card-title" id="cardTitle"></h1>
+    <p class="card-sub" id="cardSub"></p>
+    <div class="card-claim" id="cardClaim">Show this to our team</div>
+  </div>
+</div>
+
+<svg class="ring" viewBox="0 0 46 46"><circle class="bg" cx="23" cy="23" r="20"/><circle class="fg" cx="23" cy="23" r="20"/></svg>
+
+<button class="mute" id="mute" aria-label="Toggle sound"></button>
+<div class="grain"></div>
+<p class="sr" id="live" aria-live="polite"></p>
+
+<script src="shared/config.js"></script>
+<script src="shared/symbols.js"></script>
+<script src="shared/audio.js"></script>
+<script src="shared/engine.js"></script>
+<script src="shared/celebrate.js"></script>
+<script src="shared/cabinet.js"></script>
+<script src="shared/leads.js"></script>
+<script src="shared/gate.js"></script>
+<script src="shared/admin.js"></script>
+<script src="shared/skin.js"></script>
+<script>
+  bootSkin({ machineW:780, machineH:1320, rows:3,
+             bulbGap:68, bulbRt:18, bulbRb:18,
+             logo:'shared/img/logo-white.png' });
+
+  /* Keep a complete copy on the iPad, so that after the first load the machine
+     starts with no network, no host and no hosting bill involved. Registered
+     last and wrapped, because failing to cache is a bad day later while a
+     throw here would be a dead machine right now. */
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    });
+  }
+</script>
+</body>
+</html>

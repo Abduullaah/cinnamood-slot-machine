@@ -1,0 +1,9 @@
+.DS_Store
+.netlify/
+_archive/
+
+# Licensed brand source files and the original asset pack stay out of the
+# public repository. The webfonts under site/shared/fonts are a different
+# matter: the machine cannot render without them and a browser downloads them
+# from any site that uses them anyway.
+Brand Guidelines/

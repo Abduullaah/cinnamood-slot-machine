@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(unzip -l \"Brand Guidelines/Brand Assets.zip\")",
+      "Bash(mv \"Brand Guidelines/Guidelines\" \"Brand Guidelines/Guidelines.jpg\")",
+      "Bash(unzip -o -q \"Brand Guidelines/Brand Assets.zip\" -d \"Brand Guidelines/\")",
+      "Bash(ffprobe -v error -show_entries format=duration,size -show_entries stream=width,height,r_frame_rate,codec_name -of default=noprint_wrappers=1 \"Reference/From Klickpin.com- Use these 13 Dreamy clean girl makeup ideas that make everyday moments look more intentional memorable and beautifully styled f.mp4\")",
+      "Read(//opt/homebrew/bin/**)",
+      "Bash(python3 -c \"import cv2; print\\('cv2 ok'\\)\")",
+      "Bash(swift /private/tmp/claude-501/-Users-abdullahalghadri-Documents-Claude-Cinnamood-Slot-Machine/8da46d4d-a1cb-404b-ba8e-292dce77d3bd/scratchpad/frames.swift '/Users/abdullahalghadri/Documents/Claude/Cinnamood Slot Machine/Reference/From Klickpin.com- Use these 13 Dreamy clean girl makeup ideas that make everyday moments look more intentional memorable and beautifully styled f.mp4' /private/tmp/claude-501/-Users-abdullahalghadri-Documents-Claude-Cinnamood-Slot-Machine/8da46d4d-a1cb-404b-ba8e-292dce77d3bd/scratchpad/frames 12)",
+      "Bash(swift \"/private/tmp/claude-501/-Users-abdullahalghadri-Documents-Claude-Cinnamood-Slot-Machine/8da46d4d-a1cb-404b-ba8e-292dce77d3bd/scratchpad/icon.swift\" \"site/shared/img/logo-vertical.png\" \"site/shared/img/icon-512.png\")",
+      "Bash(swift \"/private/tmp/claude-501/-Users-abdullahalghadri-Documents-Claude-Cinnamood-Slot-Machine/8da46d4d-a1cb-404b-ba8e-292dce77d3bd/scratchpad/icon2.swift\" \"site/shared/img/icon.png\")",
+      "Bash(mkdir -p \"/Users/abdullahalghadri/.claude/projects/-Users-abdullahalghadri-Documents-Claude-Cinnamood-Slot-Machine/memory\" && echo ok)",
+      "Bash(sips -Z 1200 logo-berry.png --out logo-berry.png)",
+      "Bash(sips -Z 1200 logo-white.png --out logo-white.png)",
+      "Bash(sips -Z 1024 icon.png --out icon.png)",
+      "Bash(rm -f logo-vertical.png)",
+      "Bash(sips -Z 512 icon.png --out icon.png)",
+      "Bash(python3 -)",
+      "Bash(curl -sSL --max-time 25 -o three.test.js \"https://unpkg.com/three@0.160.0/build/three.module.js\")",
+      "Bash(node --check scene3d.js)",
+      "Bash(curl -s -o /dev/null -w \"A:%{http_code} \" http://localhost:8777/a-atelier/index.html)",
+      "Bash(curl -s -o /dev/null -w \"B:%{http_code} \" http://localhost:8777/b-maison/index.html)",
+      "Bash(curl -s -o /dev/null -w \"C:%{http_code}\\\\n\" http://localhost:8777/c-patisserie/index.html)",
+      "Bash(curl -s -o /dev/null -w \"A:%{http_code} B:%{http_code}\\\\n\" http://localhost:8777/a-atelier/index.html http://localhost:8777/b-maison/index.html)",
+      "Bash(cp -R site /private/tmp/claude-501/-Users-abdullahalghadri-Documents-Claude-Cinnamood-Slot-Machine/8da46d4d-a1cb-404b-ba8e-292dce77d3bd/scratchpad/site.bak)",
+      "Bash(python3 /private/tmp/claude-501/-Users-abdullahalghadri-Documents-Claude-Cinnamood-Slot-Machine/8da46d4d-a1cb-404b-ba8e-292dce77d3bd/scratchpad/refine.py)",
+      "Bash(sed -i '' 's/\"clay shadow tint\", 16\\)/\"clay shadow tint\", 13\\)/' /private/tmp/claude-501/-Users-abdullahalghadri-Documents-Claude-Cinnamood-Slot-Machine/8da46d4d-a1cb-404b-ba8e-292dce77d3bd/scratchpad/refine.py)",
+      "Bash(echo \"--- exit $? ---\")"
+    ]
+  }
+}
