@@ -24,7 +24,7 @@
    have "Update the machine" in the panel, which throws this away and reloads.
    ============================================================================ */
 
-const CACHE = 'cinnamood-v3';
+const CACHE = 'cinnamood-v4';
 
 /* Listed rather than discovered, so a typo fails loudly at install time
    instead of quietly leaving one file uncached until the day it is needed. */
@@ -75,6 +75,19 @@ self.addEventListener('activate', e => {
     caches.keys()
       .then(names => Promise.all(names.filter(n => n !== CACHE).map(n => caches.delete(n))))
       .then(() => self.clients.claim())
+      .then(() => {
+        /* Tell the machine a newer version is now in the cache.
+
+           Serving from the cache is what lets this start with no network, but
+           it also means a published fix does not appear until the SECOND
+           reload: the first serves the old copy and quietly fetches the new
+           one. On a kiosk that nobody reloads, "second reload" can mean never.
+
+           So the page is told, and it decides when to act — it will only
+           restart between guests, never while somebody is playing. */
+        return self.clients.matchAll({ type: 'window' }).then(cs =>
+          cs.forEach(c => c.postMessage({ type: 'cinnamood-updated', cache: CACHE })));
+      })
   );
 });
 
