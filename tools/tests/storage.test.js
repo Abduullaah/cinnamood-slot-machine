@@ -124,6 +124,41 @@ section('Repeat window');
   check('allowed once the window has passed', st.add(GUEST(1)).ok === true);
 }
 
+section('Clearing the sheet resets the iPads too');
+{
+  const s = loadStore();
+  const st = new s.LeadStore({});
+  st.saveSettings({ dedupeWindowDays: 0 });
+  st.add(GUEST(1));
+  st.list[0].synced = true;                       // confirmed on the sheet
+  check('blocked while the sheet has them', st.add(GUEST(1)).reason === 'duplicate');
+
+  // The row is deleted from the sheet, so the sheet now says it has never
+  // seen them. The iPad must stop refusing them.
+  const dropped = st.forgetSynced(GUEST(1));
+  check('the stale local record is cleared', dropped === 1, dropped);
+  check('they can play again', st.add(GUEST(1)).ok === true);
+}
+{
+  // A guest still queued to be sent must NOT be forgotten — the sheet is about
+  // to see them, so refusing a second attempt is correct.
+  const s = loadStore();
+  const st = new s.LeadStore({});
+  st.saveSettings({ dedupeWindowDays: 0 });
+  st.add(GUEST(2));                                // stays unsynced
+  check('a queued guest is never forgotten', st.forgetSynced(GUEST(2)) === 0);
+  check('and still blocks a repeat', st.add(GUEST(2)).reason === 'duplicate');
+}
+{
+  const s = loadStore();
+  const st = new s.LeadStore({});
+  st.saveSettings({ dedupeWindowDays: 0 });
+  st.add({ first:'A', last:'B', email:'x@y.co', phone:'+30 697 000 0001' });
+  st.list[0].synced = true;
+  check('forgets by a phone written differently',
+        st.forgetSynced({ email:'unrelated@z.co', phone:'0030 697 000 0001' }) === 1);
+}
+
 section('Saving on the iPad');
 {
   const storage = makeStorage();

@@ -210,8 +210,7 @@ const CINNAMOOD_CONFIG = {
       title: 'Your details',
       sub: 'Fill these in and the lever is yours.',
       button: 'Play',
-      consent: 'We keep your details to contact you about Cinnamood news and offers. ' +
-               'Ask our team any time to be removed.'
+      consent: 'We keep your details to contact you about Cinnamood news and offers.'
     }
   },
 

@@ -32,9 +32,7 @@ class LeadGate {
       title: 'Your details',
       sub: 'Fill these in and the lever is yours.',
       button: 'Play',
-      consent:
-        'We keep your details to contact you about Cinnamood news and offers. ' +
-        'Ask our team any time to be removed.'
+      consent: 'We keep your details to contact you about Cinnamood news and offers.'
     }, opts.copy || {});
     this.onGuest = opts.onGuest || (() => {});
 
@@ -255,8 +253,7 @@ class LeadGate {
        ignored. If the sheet cannot answer, askSheet returns null and the
        decision falls back to the iPad's own record. */
     const btn = this.form.querySelector('.cm-gate-go');
-    const quick = this.store.findDuplicate(fields);   // instant, no network
-    if (!quick && !this.store.dedupeOff) {
+    if (!this.store.dedupeOff) {
       this._busy = true;
       const label = btn.textContent;
       btn.textContent = 'Checking…';
@@ -269,6 +266,7 @@ class LeadGate {
         btn.disabled = false;
         this._busy = false;
       }
+
       if (seen) {
         Object.keys(this.fields).forEach(k => this._clearFieldError(k));
         const w = seen === 'email' ? 'email address' : 'phone number';
@@ -278,6 +276,16 @@ class LeadGate {
         this.audio && this.audio.tick();
         return;
       }
+
+      /* The sheet answered "never seen them". THE SHEET WINS.
+
+         The iPad's own record is asked second, and only when the sheet could
+         not answer at all. It used to be asked first, which quietly broke the
+         one thing the sheet is for: deleting a row, or clearing the sheet for a
+         fresh start, left every iPad that had met that guest refusing them
+         forever, with the sheet plainly empty. Clearing the sheet is now a real
+         reset everywhere. */
+      if (seen === false) this.store.forgetSynced(fields);
     }
 
     const res = this.store.add(fields, { consent: this.copy.consent });

@@ -373,6 +373,31 @@ class LeadStore {
      wobbles would take the machine down completely, which is a far bigger
      failure than one person managing a second pull during an outage. Every
      such moment is written to the activity log. */
+  /* The sheet has just said it has never seen these details, so any record of
+     them on THIS iPad is out of date — the row was deleted, or the sheet was
+     cleared for a fresh start. Drop it, or the machine would go on refusing
+     someone the record no longer contains, and clearing the sheet would only
+     reset the devices that happened not to have met them.
+
+     Only records already confirmed on the sheet are dropped. An unsynced one
+     matching these details is a guest still queued to be written, so the sheet
+     is about to see them and the refusal is correct. */
+  forgetSynced(fields) {
+    const e = normEmail(fields.email), p = normPhone(fields.phone);
+    const before = this.list.length;
+    this.list = this.list.filter(r =>
+      !(r.synced && ((e && r.emailKey === e) || (p && r.phoneKey === p))));
+    const dropped = before - this.list.length;
+    if (dropped) {
+      this._persist();
+      this._reindex();
+      this._note('forget', 'Sheet no longer has this guest — cleared ' +
+                           dropped + ' stale record' + (dropped === 1 ? '' : 's'));
+      this.onChange();
+    }
+    return dropped;
+  }
+
   async askSheet(fields, timeoutMs) {
     if (this.dedupeOff) return null;
     const url = (this.settings.syncUrl || '').trim();
