@@ -34,7 +34,7 @@ That is the whole of it. The address and passphrase are already stored on the si
 
 ## Putting it on an iPad
 
-Open https://cinnamood.netlify.app in Safari. Share, then **Add to Home Screen**. Open it from that icon and it runs full screen with no browser bars.
+Open https://abduullaah.github.io/cinnamood-slot-machine/ in Safari. Share, then **Add to Home Screen**. Open it from that icon and it runs full screen with no browser bars.
 
 No sheet address to type, no passphrase, no settings. A brand-new iPad, or one that has been wiped, works the moment it opens the link. That is deliberate: when those details lived on each device, an iPad that nobody remembered to set up looked completely normal while saving nowhere but itself.
 
@@ -56,18 +56,21 @@ Change it in the Apps Script editor and save. Then **Deploy**, **Manage deployme
 
 Then update the server, not the iPads:
 
+Then change it in `site/shared/config.js` under `leads.syncKey`, and publish:
+
 ```bash
-netlify env:set SHEET_KEY "your-new-passphrase" --context production
-netlify deploy --prod
+./tools/publish.sh "New sheet passphrase"
 ```
 
-The address lives in `SHEET_URL` the same way. Neither is in the site's source, so neither can be read out of the page.
+## The passphrase is readable, on purpose
 
-## Why the iPad does not talk to Google directly
+The address and passphrase sit in `site/shared/config.js`, which anyone can read. That is a deliberate trade.
 
-The site is public, so anything the page needs in order to reach the sheet would be readable by anyone who views its source — and with the address and passphrase, a stranger could write whatever they liked into the guest list. Instead the iPad posts to Cinnamood's own address, `/api/leads`, and the server adds the credentials and forwards it. The code is in `netlify/functions/leads.mjs`.
+Hiding them would mean a small server in the middle, and a server bills per guest. A hosting quota running out halfway through an event is a far worse outcome than a passphrase being readable — especially since all it lets a stranger do is add junk rows. They cannot read the sheet and cannot touch the machine.
 
-The iPad still keeps its own copy first, so this bridge being down never costs a guest. The queue simply goes out later.
+Going straight to Google also takes the host out of the path entirely. Once the page has loaded, nothing between a guest and the sheet can run out of anything.
+
+If junk ever does appear, change the passphrase as above. It takes two minutes.
 
 ## A note on consent
 
