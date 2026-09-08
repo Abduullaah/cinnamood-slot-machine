@@ -235,7 +235,7 @@ class LeadGate {
 
   /* ---- submit ------------------------------------------------------------ */
 
-  _submit() {
+  async _submit() {
     if (this._busy) return;
     const fields = {
       first: this.fields.first.input.value,
@@ -243,6 +243,42 @@ class LeadGate {
       email: this.fields.email.input.value,
       phone: this.fields.phone.input.value
     };
+
+    /* ---- ask the sheet first ---------------------------------------------
+       The store below only knows this iPad. The rule is that no email and no
+       phone plays twice anywhere, so before anything is written the sheet gets
+       asked — it is the one place that has seen every guest from every
+       machine.
+
+       This is the only moment in the whole machine that waits on the network,
+       so the button says what is happening rather than appearing to have been
+       ignored. If the sheet cannot answer, askSheet returns null and the
+       decision falls back to the iPad's own record. */
+    const btn = this.form.querySelector('.cm-gate-go');
+    const quick = this.store.findDuplicate(fields);   // instant, no network
+    if (!quick && !this.store.dedupeOff) {
+      this._busy = true;
+      const label = btn.textContent;
+      btn.textContent = 'Checking…';
+      btn.disabled = true;
+      let seen = null;
+      try {
+        seen = await this.store.askSheet(fields);
+      } finally {
+        btn.textContent = label;
+        btn.disabled = false;
+        this._busy = false;
+      }
+      if (seen) {
+        Object.keys(this.fields).forEach(k => this._clearFieldError(k));
+        const w = seen === 'email' ? 'email address' : 'phone number';
+        this._showAlert(`That ${w} has already had its pull. One per guest — ` +
+                        `speak to our team if that doesn't sound right.`);
+        if (this.fields[seen]) this.fields[seen].wrap.classList.add('bad');
+        this.audio && this.audio.tick();
+        return;
+      }
+    }
 
     const res = this.store.add(fields, { consent: this.copy.consent });
 
