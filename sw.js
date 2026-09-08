@@ -24,24 +24,24 @@
    have "Update the machine" in the panel, which throws this away and reloads.
    ============================================================================ */
 
-const CACHE = 'cinnamood-v4';
+const CACHE = 'cinnamood-v6';
 
 /* Listed rather than discovered, so a typo fails loudly at install time
    instead of quietly leaving one file uncached until the day it is needed. */
 const SHELL = [
   './',
   './index.html',
-  './shared/base.css',
-  './shared/config.js',
-  './shared/symbols.js',
-  './shared/audio.js',
-  './shared/engine.js',
-  './shared/celebrate.js',
-  './shared/cabinet.js',
-  './shared/leads.js',
-  './shared/gate.js',
-  './shared/admin.js',
-  './shared/skin.js',
+  './shared/base.css?v=6',
+  './shared/config.js?v=6',
+  './shared/symbols.js?v=6',
+  './shared/audio.js?v=6',
+  './shared/engine.js?v=6',
+  './shared/celebrate.js?v=6',
+  './shared/cabinet.js?v=6',
+  './shared/leads.js?v=6',
+  './shared/gate.js?v=6',
+  './shared/admin.js?v=6',
+  './shared/skin.js?v=6',
   './shared/fonts/LynoStan.otf',
   './shared/fonts/LynoJean.otf',
   './shared/img/logo-white.png',
@@ -127,7 +127,7 @@ self.addEventListener('fetch', e => {
       }).catch(() =>
         /* Offline and never seen: the only sensible answer for a navigation is
            the page we do have. */
-        req.mode === 'navigate' ? caches.match('./index.html') : Response.error()
+        req.mode === 'navigate' ? caches.match('./index.html?v=5') : Response.error()
       );
     })
   );
