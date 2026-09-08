@@ -118,6 +118,38 @@ function doPost(e) {
       return reply({ ok: true, pong: true });
     }
 
+    /* ---- has this person already played? ---------------------------------
+       Asked by the kiosk BEFORE it lets anyone pull.
+
+       Each iPad remembers who has played on it, which is enough for one
+       machine that never loses its storage. It is not enough for the rule as
+       stated: two iPads would each let the same person play, and an iPad whose
+       storage iOS decided to clear would forget everyone. The sheet is the one
+       place that sees every guest from every machine, so the final word on
+       "has this person played" belongs here.
+
+       Matching is the same as the kiosk's: email, or the last nine digits of
+       the phone, so +971 50…, 0097150… and 50… are all one person. */
+    if (body.check) {
+      var s = ensureWorkbook();
+      var n = s.getLastRow() - 1;
+      if (n < 1) return reply({ ok: true, seen: false });
+
+      var wantEmail = normEmail(body.check.email);
+      var wantPhone = normPhone(body.check.phone);
+      // Columns D (email) and E (phone), read in one go.
+      var seenRows = s.getRange(2, 4, n, 2).getValues();
+      for (var k = 0; k < seenRows.length; k++) {
+        if (wantEmail && normEmail(seenRows[k][0]) === wantEmail) {
+          return reply({ ok: true, seen: true, field: 'email' });
+        }
+        if (wantPhone && normPhone(seenRows[k][1]) === wantPhone) {
+          return reply({ ok: true, seen: true, field: 'phone' });
+        }
+      }
+      return reply({ ok: true, seen: false });
+    }
+
     var leads = body.leads;
     if (!Array.isArray(leads)) return reply({ ok: false, error: 'No leads sent' });
 
@@ -202,6 +234,29 @@ function admin(body) {
 
   if (cmd === 'count') return reply({ ok: true, guests: rows });
 
+  /* Everything needed to work out why a sheet does not look the way it should,
+     without anyone having to describe it over a message. */
+  if (cmd === 'diagnose') {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var props = PropertiesService.getScriptProperties().getProperties();
+    return reply({
+      ok: true,
+      spreadsheet: ss.getName(),
+      timeZone: ss.getSpreadsheetTimeZone(),
+      tabs: ss.getSheets().map(function (sh) {
+        return { name: sh.getName(), index: sh.getIndex(),
+                 lastRow: sh.getLastRow(), lastCol: sh.getLastColumn(),
+                 hidden: sh.isSheetHidden(),
+                 firstRow: sh.getLastRow() ? sh.getRange(1, 1, 1,
+                            Math.min(sh.getLastColumn() || 1, 12)).getValues()[0] : [],
+                 secondRow: sh.getLastRow() > 1 ? sh.getRange(2, 1, 1,
+                            Math.min(sh.getLastColumn() || 1, 12)).getDisplayValues()[0] : [] };
+      }),
+      scriptProperties: props,
+      expectedColumns: COLS.length
+    });
+  }
+
   if (cmd === 'rebuild') { setUp(); return reply({ ok: true, rebuilt: true }); }
 
   if (cmd === 'read') {
@@ -275,6 +330,19 @@ function buildRow(L) {
     text(L.consent),
     String(L.id)
   ];
+}
+
+/* These two must stay identical to the pair in site/shared/leads.js. If the
+   kiosk and the sheet ever disagree about what makes two people the same, one
+   of them lets a guest through that the other would have stopped, and the rule
+   quietly stops meaning anything. */
+function normEmail(v) {
+  return String(v === null || v === undefined ? '' : v).trim().toLowerCase();
+}
+
+function normPhone(v) {
+  var d = String(v === null || v === undefined ? '' : v).replace(/[^0-9]/g, '');
+  return d.length > 9 ? d.slice(-9) : d;
 }
 
 /* A leading =, +, - or @ makes Sheets treat a guest's own typing as a formula.

@@ -124,6 +124,29 @@ check('formula in a name is neutralised',
       String(sheets['Guests']._rows[4][1]).charAt(0) === "'", sheets['Guests']._rows[4][1]);
 check('malformed body refused', post({ key:KEY, leads:'not-an-array' }).ok === false);
 
+console.log('\nThe sheet is the final word on who has already played');
+{
+  // one guest on record, from a DIFFERENT iPad as far as this machine knows
+  post({ key:KEY, leads:[{ id:'LC1', ts:'2026-09-08T10:00:00.000Z', first:'Sara',
+    last:'H', email:'Sara.H@Example.COM', phone:'+971 50 987 6543', consent:'' }] });
+
+  const ask = (email, phone) => post({ key: KEY, check: { email, phone } });
+  const asAdminCount = () => post({ admin: 'count', adminKey: ADMIN }).guests;
+  const rowsBeforeChecks = asAdminCount();
+
+  check('an unseen guest is allowed', ask('new@example.com','+971 50 111 0000').seen === false);
+  check('the same email is caught', ask('sara.h@example.com','+971 50 000 0000').seen === true);
+  check('email case and spacing ignored', ask('  SARA.H@EXAMPLE.com ','+9715000').seen === true);
+  check('reports which field matched', ask('sara.h@example.com','+971 50 000 0000').field === 'email');
+  check('the same phone with a different email is caught',
+        ask('someone.else@example.com','00971509876543').seen === true);
+  check('phone match is reported as phone',
+        ask('someone.else@example.com','0509876543').field === 'phone');
+  // Asking is a question, not a visit: it must leave the sheet exactly as it was.
+  check('a checking request never adds a row',
+        asAdminCount() === rowsBeforeChecks, {before: rowsBeforeChecks, after: asAdminCount()});
+}
+
 console.log('\nAdmin commands are locked to their own key');
 {
   const asAdmin = (b) => post(Object.assign({ adminKey: ADMIN }, b));

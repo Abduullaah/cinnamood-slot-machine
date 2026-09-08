@@ -357,6 +357,53 @@ class LeadStore {
     return null;
   }
 
+  /* THE SAME QUESTION, ASKED OF THE SHEET.
+
+     The check above only knows who has played on THIS iPad. That is not the
+     rule: no email and no phone may play twice, full stop. Two machines would
+     each happily let the same person play, and an iPad whose storage iOS
+     cleared would forget everyone it had ever seen.
+
+     The sheet has seen every guest from every machine, so it gets the final
+     word — asked before the lever is handed over, not after.
+
+     WHEN THE SHEET CANNOT BE REACHED it returns null, meaning "no answer", and
+     the caller lets the guest play on the strength of the local check alone.
+     That is a deliberate choice: refusing everyone the moment the venue wifi
+     wobbles would take the machine down completely, which is a far bigger
+     failure than one person managing a second pull during an outage. Every
+     such moment is written to the activity log. */
+  async askSheet(fields, timeoutMs) {
+    if (this.dedupeOff) return null;
+    const url = (this.settings.syncUrl || '').trim();
+    if (!url || !navigator.onLine) return null;
+
+    const ctrl = typeof AbortController === 'function' ? new AbortController() : null;
+    const killer = ctrl ? setTimeout(() => ctrl.abort(), timeoutMs || 7000) : null;
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          key: this.settings.syncKey || '',
+          check: { email: fields.email, phone: fields.phone }
+        }),
+        signal: ctrl ? ctrl.signal : undefined
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const json = JSON.parse(await res.text());
+      if (json.ok !== true) throw new Error(json.error || 'refused');
+      return json.seen ? (json.field || 'email') : false;
+    } catch (err) {
+      this._note('checkfail',
+        'Could not ask the sheet whether this guest had played: ' +
+        ((err && err.message) ? err.message : String(err)));
+      return null;
+    } finally {
+      if (killer) clearTimeout(killer);
+    }
+  }
+
   /* ---- adding ------------------------------------------------------------ */
 
   add(fields, extra = {}) {
