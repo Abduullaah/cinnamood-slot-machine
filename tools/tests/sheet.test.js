@@ -27,6 +27,8 @@ function mkSheet(name) {
     getMaxRows: () => 1000,
     getRange(r,c,nr,nc){ if(typeof r==='string'){return mkRange(s,1,1,1,1);} return mkRange(s,r,c,nr||1,nc||1); },
     appendRow(v){ s._rows[s.getLastRow()] = v.slice(); },
+    deleteRow(r){ s._rows.splice(r-1,1); },
+    deleteRows(r,n){ s._rows.splice(r-1,n); },
     setRowHeight(){}, setFrozenRows(){}, setColumnWidth(){}, setHiddenGridlines(){},
     getFilter(){return null;}, getConditionalFormatRules(){return [];},
     setConditionalFormatRules(){}, clearConditionalFormatRules(){}, clear(){ s._rows=[]; }
@@ -57,7 +59,10 @@ vm.createContext(sandbox);
 vm.runInContext(src, sandbox);
 
 const post = body => JSON.parse(sandbox.doPost({ postData: { contents: JSON.stringify(body) } }));
-const KEY = 'change-me-to-something-only-you-know';
+// Read the real secrets out of the file, so changing them cannot silently
+// leave this suite testing a passphrase nobody uses.
+const KEY = /var PASSPHRASE = '([^']+)'/.exec(src)[1];
+const ADMIN = /var ADMIN_KEY = '([^']+)'/.exec(src)[1];
 
 let pass = 0, fail = 0;
 const check = (name, cond, extra) => {
@@ -118,6 +123,57 @@ r = post({ key:KEY, leads:[{ id:'L4', first:'=HYPERLINK("http://evil","click")',
 check('formula in a name is neutralised',
       String(sheets['Guests']._rows[4][1]).charAt(0) === "'", sheets['Guests']._rows[4][1]);
 check('malformed body refused', post({ key:KEY, leads:'not-an-array' }).ok === false);
+
+console.log('\nAdmin commands are locked to their own key');
+{
+  const asAdmin = (b) => post(Object.assign({ adminKey: ADMIN }, b));
+  check('the public passphrase cannot read guests',
+        post({ key: KEY, admin: 'read' }).ok === false);
+  check('a wrong admin key is refused',
+        post({ admin: 'read', adminKey: 'nope' }).error === 'Not authorised');
+  check('no admin key at all is refused',
+        post({ admin: 'read' }).ok === false);
+
+  const before = asAdmin({ admin: 'count' });
+  check('count works', before.ok === true && before.guests > 0, before);
+
+  const readBack = asAdmin({ admin: 'read' });
+  check('read returns the guests', readBack.rows.length === before.guests, readBack.rows.length);
+  check('read gives readable column names',
+        readBack.rows[0]['First name'] !== undefined, Object.keys(readBack.rows[0]));
+  check('dates come back as text, not objects',
+        typeof readBack.rows[0]['When'] === 'string', typeof readBack.rows[0]['When']);
+
+  const paged = asAdmin({ admin: 'read', offset: 1, limit: 1 });
+  check('paging works', paged.rows.length === 1 && paged.rows[0]['Lead ID'] !== readBack.rows[0]['Lead ID']);
+
+  const targetId = readBack.rows[0]['Lead ID'];
+  const del = asAdmin({ admin: 'delete', ids: [targetId] });
+  check('delete removes exactly one', del.deleted === 1, del);
+  const after = asAdmin({ admin: 'read' });
+  check('the right guest went', !after.rows.some(r => r['Lead ID'] === targetId));
+  check('everyone else stayed', after.rows.length === before.guests - 1, after.rows.length);
+
+  check('delete with no ids is refused', asAdmin({ admin: 'delete', ids: [] }).ok === false);
+
+  check('clear refuses a wrong expected count',
+        asAdmin({ admin: 'clear', confirmCount: 999 }).ok === false);
+  const n = asAdmin({ admin: 'count' }).guests;
+  const cleared = asAdmin({ admin: 'clear', confirmCount: n });
+  check('clear removes every guest', cleared.cleared === n, cleared);
+  check('the header row survived', sheets['Guests']._rows[0][0] === 'When');
+  check('the sheet is empty', asAdmin({ admin: 'count' }).guests === 0);
+
+  check('unknown commands are refused', asAdmin({ admin: 'nonsense' }).ok === false);
+}
+
+console.log('\nThe kiosk still works after all that');
+{
+  const r = post({ key: KEY, leads: [{ id:'LX', ts:'2026-09-08T10:00:00.000Z',
+    first:'After', last:'Admin', email:'a@a.co', phone:'2100000009', consent:'' }] });
+  check('a new guest lands in the empty sheet', r.ok === true);
+  check('as the first data row', sheets['Guests'].getLastRow() === 2, sheets['Guests'].getLastRow());
+}
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed\n');
 process.exit(fail ? 1 : 0);

@@ -27,7 +27,26 @@
       words go into the Passphrase box in the iPad's staff panel. It is what
       stops anyone who ever sees the web app address writing into your sheet.
    --------------------------------------------------------------------------- */
-var PASSPHRASE = 'change-me-to-something-only-you-know';
+var PASSPHRASE = 'cinnamoodrolls';
+
+/* ---------------------------------------------------------------------------
+   THE ADMIN KEY — a completely separate secret, and it must stay that way.
+
+   PASSPHRASE above is in the kiosk's public source, because the machine has to
+   carry it in order to save a guest. Anyone can read it. All it can do is ADD a
+   row, so the worst anyone can do with it is add rubbish.
+
+   This key can READ every guest's details and DELETE them. It is never in the
+   site, never in the browser, and never posted by the machine. It exists only
+   here and wherever you have chosen to keep it.
+
+   Any request that tries an admin command with the public passphrase is
+   refused — the two are checked separately and are never interchangeable.
+
+   If it ever leaks, change it here and redeploy. Nothing on any iPad breaks,
+   because no iPad has ever used it.
+   --------------------------------------------------------------------------- */
+var ADMIN_KEY = 'qv9wUTS0shgpQ4JudzqFG4qKasPNz0RUnMUy';
 
 /* ---------------------------------------------------------------------------
    2. Nothing below here needs editing.
@@ -74,6 +93,18 @@ function doPost(e) {
 
   try {
     var body = JSON.parse(e.postData.contents);
+
+    /* ---- admin commands ---------------------------------------------------
+       Checked FIRST and against their own key, so the public passphrase can
+       never reach anything that reads or removes a guest. An admin request
+       that arrives with the public passphrase falls through to the check below
+       and is refused, because `admin` is not a command the kiosk sends. */
+    if (body.admin) {
+      if (String(body.adminKey || '') !== ADMIN_KEY || !ADMIN_KEY) {
+        return reply({ ok: false, error: 'Not authorised' });
+      }
+      return admin(body);
+    }
 
     if (String(body.key || '') !== PASSPHRASE) {
       return reply({ ok: false, error: 'Wrong passphrase' });
@@ -146,6 +177,83 @@ function doPost(e) {
   } finally {
     lock.releaseLock();
   }
+}
+
+/* ============================================================================
+   ADMIN
+   ----------------------------------------------------------------------------
+   Reached only with ADMIN_KEY. Four commands:
+
+     read    — the guest rows, newest last. `limit` and `offset` page through.
+     count   — how many guests, without pulling any of them back.
+     delete  — remove specific guests by their Lead ID.
+     clear   — remove every guest row, keeping the headers and the layout.
+     rebuild — lay the three tabs out again, touching no data.
+
+   `clear` and `delete` are the only things in this whole file that can destroy
+   a guest, which is why they sit behind a key the kiosk does not have.
+   ============================================================================ */
+
+function admin(body) {
+  var cmd = String(body.admin);
+  var sheet = ensureWorkbook();
+  var last = sheet.getLastRow();
+  var rows = Math.max(0, last - 1);
+
+  if (cmd === 'count') return reply({ ok: true, guests: rows });
+
+  if (cmd === 'rebuild') { setUp(); return reply({ ok: true, rebuilt: true }); }
+
+  if (cmd === 'read') {
+    if (!rows) return reply({ ok: true, guests: 0, rows: [] });
+    var offset = Math.max(0, Number(body.offset) || 0);
+    var limit = Math.min(Number(body.limit) || 200, 500);
+    var start = 2 + offset;
+    var n = Math.max(0, Math.min(limit, last - start + 1));
+    if (n <= 0) return reply({ ok: true, guests: rows, rows: [] });
+    var values = sheet.getRange(start, 1, n, COLS.length).getValues();
+    var out = values.map(function (r) {
+      var o = {};
+      COLS.forEach(function (c, i) {
+        // Dates would otherwise come back as an opaque object.
+        o[c.head] = (r[i] instanceof Date) ? r[i].toISOString() : r[i];
+      });
+      return o;
+    });
+    return reply({ ok: true, guests: rows, offset: offset, rows: out });
+  }
+
+  if (cmd === 'delete') {
+    var ids = Array.isArray(body.ids) ? body.ids.map(String) : [];
+    if (!ids.length) return reply({ ok: false, error: 'No ids given' });
+    if (!rows) return reply({ ok: true, deleted: 0 });
+    var idCol = COLS.length;
+    var have = sheet.getRange(2, idCol, rows, 1).getValues();
+    /* Collected then removed from the BOTTOM UP. Deleting top-down shifts every
+       row beneath it, so the second deletion would land one row off and remove
+       somebody else — the kind of bug that quietly destroys the wrong guest. */
+    var hits = [];
+    for (var i = 0; i < have.length; i++) {
+      if (ids.indexOf(String(have[i][0])) !== -1) hits.push(i + 2);
+    }
+    hits.sort(function (a, b) { return b - a; });
+    hits.forEach(function (r) { sheet.deleteRow(r); });
+    return reply({ ok: true, deleted: hits.length });
+  }
+
+  if (cmd === 'clear') {
+    /* Deliberately awkward: it will not fire unless the caller states how many
+       guests it expects to destroy and is right. A stale or mistaken wipe
+       fails instead of succeeding. */
+    if (Number(body.confirmCount) !== rows) {
+      return reply({ ok: false, error: 'Expected ' + body.confirmCount +
+                                       ' guests but the sheet holds ' + rows });
+    }
+    if (rows) sheet.deleteRows(2, rows);
+    return reply({ ok: true, cleared: rows });
+  }
+
+  return reply({ ok: false, error: 'Unknown command: ' + cmd });
 }
 
 /* Opening the web app address in a browser should say something useful rather
