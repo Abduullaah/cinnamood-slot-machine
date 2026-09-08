@@ -10,6 +10,10 @@ cd "$(dirname "$0")/.."
 
 ./tools/tests/run.sh
 
+# One build number across every asset URL, so a half-updated cache cannot
+# leave the machine running two builds at once.
+python3 tools/bump.py
+
 git add -A
 git diff --cached --quiet || git commit -m "${1:-Update the machine}"
 git push origin main
