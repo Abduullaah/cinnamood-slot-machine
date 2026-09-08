@@ -48,6 +48,16 @@ var PASSPHRASE = 'cinnamoodrolls';
    --------------------------------------------------------------------------- */
 var ADMIN_KEY = 'qv9wUTS0shgpQ4JudzqFG4qKasPNz0RUnMUy';
 
+/* Which build is actually answering. Returned by every ping and by opening the
+   address in a browser.
+
+   This exists because of an afternoon lost to exactly one question: is the code
+   I am looking at the code that is running? The editor held the new script, one
+   deployment was pinned to an old version, a second deployment nobody was using
+   had the new one, and from the outside all three looked identical. Bump this
+   whenever the script changes and that question is answerable in one request. */
+var SCRIPT_VERSION = 4;
+
 /* ---------------------------------------------------------------------------
    2. Nothing below here needs editing.
    --------------------------------------------------------------------------- */
@@ -115,7 +125,7 @@ function doPost(e) {
        as you like while setting up. */
     if (body.ping) {
       ensureWorkbook();
-      return reply({ ok: true, pong: true });
+      return reply({ ok: true, pong: true, version: SCRIPT_VERSION });
     }
 
     /* ---- has this person already played? ---------------------------------
@@ -314,7 +324,8 @@ function admin(body) {
 /* Opening the web app address in a browser should say something useful rather
    than throw a script error — it is the quickest way to check a deployment. */
 function doGet() {
-  return reply({ ok: true, service: 'Cinnamood leads', note: 'Ready. Post leads here.' });
+  return reply({ ok: true, service: 'Cinnamood leads',
+                 version: SCRIPT_VERSION, note: 'Ready. Post leads here.' });
 }
 
 function buildRow(L) {
