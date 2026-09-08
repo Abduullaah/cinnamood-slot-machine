@@ -1,0 +1,130 @@
+/* ============================================================================
+   CINNAMOOD — BASE
+   ----------------------------------------------------------------------------
+   Brand type, brand colour tokens, and the kiosk hardening every approach needs:
+   no text selection, no long-press callouts, no rubber-band scroll, no
+   double-tap zoom. On a stand in a café these are not polish, they're the
+   difference between a product and a webpage.
+   ============================================================================ */
+
+@font-face {
+  font-family: 'Lyno Stan';
+  src: url('fonts/LynoStan.otf') format('opentype');
+  font-weight: 400;
+  font-display: block;
+}
+@font-face {
+  font-family: 'Lyno Jean';
+  src: url('fonts/LynoJean.otf') format('opentype');
+  font-weight: 400;
+  font-display: block;
+}
+
+:root {
+  /* The four brand colours, and nothing else. */
+  --berry: #AC1E55;
+  --rose:  #D18B8D;
+  --blush: #F3DBEA;
+  --cream: #F6F1EA;
+
+  --font-display: 'Lyno Stan', 'Lyno Jean', Verdana, sans-serif;
+  --font-body: Verdana, -apple-system, system-ui, sans-serif;
+
+  /* Layout unit — every skin scales from this single number, which is how the
+     whole cabinet stays proportional from a phone to a 13" iPad in landscape. */
+  --u: clamp(3.4px, min(1.05vw, 1.15vh), 11px);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: manipulation;
+  -webkit-user-select: none; user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  font-family: var(--font-body);
+}
+
+body { position: fixed; inset: 0; }
+
+button { font-family: inherit; -webkit-appearance: none; appearance: none; }
+
+/* Anything that moves gets promoted, once, up front. */
+.gpu { will-change: transform; transform: translateZ(0); backface-visibility: hidden; }
+
+/* ---- Reel plumbing shared by all skins ----------------------------------
+   The reel window shows `--rows` symbols; the middle one is the payline. Cell
+   height is written from JS because it depends on the window's pixel height,
+   which no CSS relationship can express.
+   ------------------------------------------------------------------------- */
+.reel {
+  position: relative;
+  overflow: hidden;
+  --reel-blur: 0px;
+  --reel-speed: 0;
+  --cell-h: 100px;
+}
+.reel .strip {
+  position: absolute;
+  inset: 0 0 auto 0;
+  will-change: transform, filter;
+  /* Blur is driven per-frame from the reel's real velocity, so the smear is
+     genuine speed rather than a canned animation. Capped in JS to keep iPad
+     Safari pinned at 60fps. */
+  filter: blur(var(--reel-blur));
+}
+.reel .cell {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: var(--cell-h);
+  transition: opacity .55s cubic-bezier(.4, 0, .2, 1);
+}
+.reel .cell svg {
+  width: 74%; height: 74%; display: block;
+  shape-rendering: geometricPrecision;
+}
+
+/* ---- Anticipation ---------------------------------------------------------
+   When two reels agree and the third is still turning, the settled reels get
+   knocked back so the live one holds the eye.
+
+   Fade the CELLS, never the reel. Fading the reel makes it translucent, which
+   lets the dark frame behind show through — so instead of dimming, the two
+   settled reels visibly CHANGE COLOUR, and it reads as a rendering fault
+   rather than a spotlight. */
+.machine.hot .reel[data-reel="0"] .cell,
+.machine.hot .reel[data-reel="1"] .cell { opacity: .3; }
+
+/* ---- Celebration canvas --------------------------------------------------
+   A canvas is a replaced element: `inset:0` alone will NOT stretch it, it just
+   centres it at its intrinsic 300x150 (or whatever was last set) and hands the
+   leftover space to margins. The explicit 100%/100% is required. */
+#confetti { width: 100%; height: 100%; display: block; }
+
+/* ---- Cabinet knock -------------------------------------------------------
+   Each reel landing thumps the whole cabinet very slightly. It's a 3px move
+   over 180ms and nobody consciously sees it, but removing it makes the reels
+   feel like they're floating in front of the machine rather than inside it. */
+@keyframes knock {
+  0%   { translate: 0 0; }
+  28%  { translate: 0 4px; }
+  60%  { translate: 0 -1.5px; }
+  100% { translate: 0 0; }
+}
+.machine.knock0, .machine.knock1 { animation: knock .19s cubic-bezier(.3,.7,.4,1); }
+.machine.knock2 { animation: knock .3s cubic-bezier(.3,.7,.4,1); }
+
+/* ---- Screen-reader only -------------------------------------------------- */
+.sr {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+}
+
+/* ---- Respect reduced motion --------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .reel .strip { filter: none !important; }
+}
