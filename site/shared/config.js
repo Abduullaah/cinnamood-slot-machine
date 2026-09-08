@@ -198,7 +198,7 @@ const CINNAMOOD_CONFIG = {
        Apps Script and here, and redeploy.
 
        Staff can point one machine elsewhere in the panel; that wins over this. */
-    syncUrl: 'https://script.google.com/macros/s/AKfycbzVBC19m5OdKM5RgYfd5gIhMn8KGKiulCfYES7u5GRIkwOLTzucOP-TA-CguCHuGNDa/exec',
+    syncUrl: 'https://script.google.com/macros/s/AKfycbwGZ7d3E0B_FmbxnfYMLjrL-FEdqvYkt00hOHXBoc7o83KWR9rGrJ_3aoFRcg5cB5_B/exec',
     syncKey: 'cinnamoodrolls',
 
     armedTimeoutMs: 90000,

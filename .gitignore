@@ -7,3 +7,4 @@ _archive/
 # matter: the machine cannot render without them and a browser downloads them
 # from any site that uses them anyway.
 Brand Guidelines/
+.script/
