@@ -10,6 +10,15 @@ cd "$(dirname "$0")/.."
 
 ./tools/tests/run.sh
 
+if grep -q "testMode: true" site/shared/config.js; then
+  echo
+  echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+  echo "!!  TEST MODE IS ON: no details form, prizes on a rehearsal loop.   !!"
+  echo "!!  Set testMode: false in site/shared/config.js before the event.  !!"
+  echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+  echo
+fi
+
 # One build number across every asset URL, so a half-updated cache cannot
 # leave the machine running two builds at once.
 python3 tools/bump.py

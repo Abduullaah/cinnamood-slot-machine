@@ -29,6 +29,18 @@ const CINNAMOOD_CONFIG = {
   ------------------------------------------------------------------------- */
   version: 2,
 
+  /* ---- TEST MODE ---------------------------------------------------------
+     true  — for trying the machine out. The details form is skipped and the
+             lever works for anyone, nothing is saved as a guest, and prizes
+             run on a rolling 20-minute rehearsal of the evening so wins can
+             be seen now rather than only on the day. A TEST MODE label sits
+             on screen the whole time so it cannot go live unnoticed.
+     false — the real machine: details before every pull, the real event clock.
+
+     MUST BE false BEFORE THE EVENT. The publish script shouts if it is not.
+  ------------------------------------------------------------------------- */
+  testMode: true,
+
   /* ---- THE EVENT ---------------------------------------------------------
      start / end   — the iPad's own local time. Nothing is won before start.
                      CHANGE THESE if the event times change.
