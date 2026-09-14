@@ -56,7 +56,7 @@ var ADMIN_KEY = 'qv9wUTS0shgpQ4JudzqFG4qKasPNz0RUnMUy';
    deployment was pinned to an old version, a second deployment nobody was using
    had the new one, and from the outside all three looked identical. Bump this
    whenever the script changes and that question is answerable in one request. */
-var SCRIPT_VERSION = 6;
+var SCRIPT_VERSION = 7;
 
 /* ---------------------------------------------------------------------------
    2. Nothing below here needs editing.
@@ -318,6 +318,7 @@ function admin(body) {
     return reply({
       ok: true,
       spreadsheet: ss.getName(),
+      url: ss.getUrl(),
       timeZone: ss.getSpreadsheetTimeZone(),
       tabs: ss.getSheets().map(function (sh) {
         return { name: sh.getName(), index: sh.getIndex(),
