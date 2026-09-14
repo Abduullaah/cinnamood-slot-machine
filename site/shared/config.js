@@ -1,20 +1,19 @@
 /* ============================================================================
    CINNAMOOD SLOT MACHINE — CONFIGURATION
    ----------------------------------------------------------------------------
-   This is the single source of truth for prizes and odds.
-   Everything below is PLACEHOLDER until the real prize list is confirmed.
+   This is the single source of truth for prizes, stock and the event clock.
+   The prize list below is the REAL one for the event, confirmed 2026-09-14.
 
-   HOW THE ODDS WORK
-   -----------------
+   HOW A PRIZE IS WON
+   ------------------
    Real slot machines do NOT spin randomly and see what lands. They decide the
-   outcome first, then arrange the reels to show it. We do the same. That means
-   `weight` below is the ONLY thing controlling how often a prize is won —
-   no reel-symbol maths, no surprises.
+   outcome first, then arrange the reels to show it. We do the same — and the
+   deciding is done by the prize bank (prizes.js), which knows three things a
+   plain draw does not: how many of each prize is left (`stock`), what time it
+   is (`event`), and how long a released prize has been waiting.
 
-   weight = relative chance. If the weights are 1 / 8 / 12 / 20 / 59, they sum
-   to 100, so they read directly as percentages. They don't have to sum to 100;
-   they're normalised automatically. Set a weight to 0 to retire a prize
-   without deleting it.
+   `weight` no longer sets how OFTEN anyone wins — the event clock does that.
+   It sets WHICH prize a win is: the higher the weight, the easier the prize.
    ============================================================================ */
 
 const CINNAMOOD_CONFIG = {
@@ -28,9 +27,51 @@ const CINNAMOOD_CONFIG = {
      carrying old ones onto a new list would quietly produce wrong odds.
      Prize NAMES staff have edited are always kept.
   ------------------------------------------------------------------------- */
-  version: 1,
+  version: 2,
+
+  /* ---- THE EVENT ---------------------------------------------------------
+     start / end   — the iPad's own local time. Nothing is won before start.
+                     CHANGE THESE if the event times change.
+
+     releaseSpan   — the regular prizes (everything but the jackpot) are let
+                     out one at a time, evenly, across this share of the event.
+                     0.75 of 5–7pm puts one out roughly every 9 minutes from
+                     5:00 to about 6:21, leaving the rest of the evening for
+                     the jackpot and for anything a quiet room left behind.
+
+     jackpotNotBefore — share of the event before which the jackpot can NEVER
+                     come up, whatever else has happened. 0.5 = 6:00pm.
+     jackpotFallback  — after the halfway point the jackpot waits for every
+                     other prize to go. If some are still left at this point
+                     (0.8 = 6:36pm), it comes into play anyway, so it cannot
+                     go home unclaimed.
+
+     finalStretch  — from here (6:36pm) anything still on the counter gets at
+                     least an even chance on every pull, so the prizes go out.
+
+     chance        — how likely a released prize is to come up on a pull.
+                     `base` straight after release, plus `perMinute` for every
+                     minute it has been waiting, plus `perBacklog` for each
+                     further released prize still waiting, capped at `max`.
+                     Tuned by simulating 60 to 300 guests — see
+                     tools/tests/prizes.test.js before changing any of these.
+  ------------------------------------------------------------------------- */
+  event: {
+    start: '2026-09-16T17:00',
+    end:   '2026-09-16T19:00',
+    releaseSpan: 0.75,
+    jackpotNotBefore: 0.5,
+    jackpotFallback: 0.8,
+    finalStretch: 0.8,
+    chance: { base: 0.2, perMinute: 0.06, perBacklog: 0.15, finalFloor: 0.5, max: 0.9 }
+  },
 
   /* ---- PRIZES ------------------------------------------------------------
+     stock  — how many exist. A hard limit: once they have gone, they never
+              come up again.
+     weight — which prize a win is. Higher = easier. Coffee is the easiest,
+              then the boxes of 2, 4 and 6, then the mug and the T-shirt,
+              which are equally hard.
      tier controls how loud the celebration is:
        'jackpot' — full screen takeover, longest fanfare, most confetti
        'big'     — big reveal, strong fanfare
@@ -43,42 +84,65 @@ const CINNAMOOD_CONFIG = {
     {
       id: 'jackpot',
       tier: 'jackpot',
-      symbol: 'box',
-      label: 'Box of Six',
-      sub: 'A full box, on the house',
+      symbol: 'tag',
+      label: '20% Off for a Year',
+      sub: 'The Cinnamood jackpot',
+      stock: 1,
       weight: 1
     },
     {
-      id: 'classic',
-      tier: 'big',
-      symbol: 'classic',
-      label: 'Free Classic Roll',
-      sub: 'Warm from the oven',
-      weight: 7
-    },
-    {
-      id: 'pistachio',
-      tier: 'big',
-      symbol: 'pistachio',
-      label: 'Free Pistachio Roll',
-      sub: 'The one everyone asks for',
-      weight: 5
-    },
-    {
-      id: 'latte',
-      tier: 'mid',
-      symbol: 'latte',
-      label: 'Free Iced Latte',
-      sub: 'Any size you like',
-      weight: 12
-    },
-    {
-      id: 'off20',
+      id: 'coffee',
       tier: 'small',
-      symbol: 'tag',
-      label: '20% Off',
-      sub: 'On your order today',
-      weight: 16
+      symbol: 'coffee',
+      label: 'Coffee of Your Choice',
+      sub: 'Any coffee, on the house',
+      stock: 5,
+      weight: 8
+    },
+    {
+      id: 'box2',
+      tier: 'mid',
+      symbol: 'box2',
+      label: 'Box of 2 Rolls',
+      sub: 'Two rolls to take home',
+      stock: 1,
+      weight: 6
+    },
+    {
+      id: 'box4',
+      tier: 'mid',
+      symbol: 'box4',
+      label: 'Box of 4 Rolls',
+      sub: 'Four rolls to take home',
+      stock: 1,
+      weight: 4
+    },
+    {
+      id: 'box6',
+      tier: 'big',
+      symbol: 'box6',
+      label: 'Box of 6 Rolls',
+      sub: 'A full box to take home',
+      stock: 1,
+      weight: 3
+    },
+    {
+      id: 'mug',
+      tier: 'big',
+      symbol: 'mug',
+      label: 'Cup of Mood',
+      sub: 'Our exclusive mug',
+      stock: 1,
+      weight: 2
+    },
+    {
+      id: 'tee',
+      tier: 'big',
+      symbol: 'tee',
+      label: 'Cinnamood T-Shirt',
+      sub: 'Exclusive merch',
+      stock: 1,
+      weight: 2
     },
     {
       id: 'none',
@@ -89,7 +153,8 @@ const CINNAMOOD_CONFIG = {
       // person move on; anything added here either over-explains or makes a
       // promise about a future visit that the machine can't keep.
       sub: '',
-      weight: 59
+      stock: 0,
+      weight: 0
     }
   ],
 
@@ -216,10 +281,11 @@ const CINNAMOOD_CONFIG = {
 
   /* ---- SYMBOLS -----------------------------------------------------------
      What actually appears on the reels. Losing spins draw from these too,
-     so keep at least 6 or the reels look repetitive.
+     so keep at least 6 or the reels look repetitive. EVERY prize's symbol
+     must be in here — a reel can only stop on a symbol it carries.
   ------------------------------------------------------------------------- */
   symbols: [
-    'classic', 'pistachio', 'sticks', 'chocolate', 'latte', 'coffee', 'tag', 'box', 'heart'
+    'coffee', 'box2', 'box4', 'box6', 'mug', 'tee', 'tag', 'classic', 'heart'
   ]
 };
 
@@ -235,9 +301,13 @@ const CINNAMOOD_CONFIG = {
    cleared by hand.
 
    So: the FILE owns which prizes exist and what they are (`id`, `tier`,
-   `symbol`). Storage owns only what staff are allowed to tune — `weight`,
-   `label`, `sub` — and only for prizes that still exist. Bump PRIZE_LIST_VERSION
-   in config whenever the real list lands to drop stale staff weights entirely.
+   `symbol`, `stock`, `weight`) and the event clock. Storage owns only the
+   wording staff may edit — `label` and `sub` — and only for prizes that still
+   exist, and only within the same `version`.
+
+   Stock and weights are deliberately NOT editable on the iPad any more. They
+   decide whether the right prize goes out at the right time, and a slider
+   nudged on a busy counter must not be able to change that.
    --------------------------------------------------------------------------- */
 function loadConfig() {
   const base = JSON.parse(JSON.stringify(CINNAMOOD_CONFIG));
@@ -246,19 +316,13 @@ function loadConfig() {
     if (!saved) return base;
     const patch = JSON.parse(saved);
 
-    if (Array.isArray(patch.prizes)) {
-      const sameGeneration = patch.version === base.version;
+    if (Array.isArray(patch.prizes) && patch.version === base.version) {
       const byId = new Map(patch.prizes.map(p => [p && p.id, p]));
       base.prizes.forEach(p => {
         const s = byId.get(p.id);
         if (!s) return;                       // prize is new in this deploy
-        // Labels and copy carry across generations; tuned odds do not, because
-        // a weight only means something relative to the list it was set on.
         if (typeof s.label === 'string' && s.label.trim()) p.label = s.label;
         if (typeof s.sub === 'string') p.sub = s.sub;
-        if (sameGeneration && Number.isFinite(Number(s.weight))) {
-          p.weight = Math.max(0, Number(s.weight));
-        }
       });
     }
 

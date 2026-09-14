@@ -56,7 +56,7 @@ var ADMIN_KEY = 'qv9wUTS0shgpQ4JudzqFG4qKasPNz0RUnMUy';
    deployment was pinned to an old version, a second deployment nobody was using
    had the new one, and from the outside all three looked identical. Bump this
    whenever the script changes and that question is answerable in one request. */
-var SCRIPT_VERSION = 4;
+var SCRIPT_VERSION = 5;
 
 /* ---------------------------------------------------------------------------
    2. Nothing below here needs editing.
@@ -83,8 +83,19 @@ var COLS = [
   { head: 'Won',           width: 70,  align: 'center' },
   { head: 'Repeat',        width: 80,  align: 'center' },
   { head: 'Consent shown', width: 300 },
-  { head: 'Lead ID',       width: 150, format: '@' }
+  { head: 'Lead ID',       width: 150, format: '@' },
+  /* Added LAST so every existing row and every column letter above stays where
+     it was. The prize's fixed id rather than its name, because staff can edit
+     the name on the iPad and the machine must still recognise the prize. */
+  { head: 'Prize ID',      width: 100, format: '@' }
 ];
+
+/* Column number (1-based) of a heading. Lead ID used to be found as "the last
+   column", which stopped being true the moment a column was added after it. */
+function colOf(head) {
+  for (var i = 0; i < COLS.length; i++) if (COLS[i].head === head) return i + 1;
+  throw new Error('No column ' + head);
+}
 
 /* ============================================================================
    RECEIVING
@@ -160,6 +171,33 @@ function doPost(e) {
       return reply({ ok: true, seen: false });
     }
 
+    /* ---- how many of each prize has gone out? ----------------------------
+       The kiosk's second copy of its prize count. If the iPad's storage were
+       wiped during the event, this is how it avoids giving a prize away a
+       second time. Returns Lead IDs and prize ids only — no names, emails or
+       phones — so the public passphrase is enough. IDs rather than totals, so
+       the machine can count each guest's win exactly once across both copies. */
+    if (body.wins) {
+      var ws = ensureWorkbook();
+      var wn = ws.getLastRow() - 1;
+      var since = new Date(body.wins.since).getTime();
+      if (!isFinite(since)) return reply({ ok: false, error: 'Bad since' });
+      var wins = [];
+      if (wn > 0) {
+        var all = ws.getRange(2, 1, wn, COLS.length).getValues();
+        var wonAt = colOf('Won') - 1, pidAt = colOf('Prize ID') - 1, lidAt = colOf('Lead ID') - 1;
+        for (var q = 0; q < all.length; q++) {
+          var t = new Date(all[q][0]).getTime();
+          var pid = String(all[q][pidAt] || '');
+          var lid = String(all[q][lidAt] || '');
+          if (isFinite(t) && t >= since && all[q][wonAt] === 'Yes' && pid && lid) {
+            wins.push({ lead: lid, prize: pid });
+          }
+        }
+      }
+      return reply({ ok: true, wins: wins });
+    }
+
     var leads = body.leads;
     if (!Array.isArray(leads)) return reply({ ok: false, error: 'No leads sent' });
 
@@ -168,7 +206,7 @@ function doPost(e) {
     /* Index the ids already present, once, rather than searching the whole
        column again for every lead in the batch. */
     var lastRow = sheet.getLastRow();
-    var idCol = COLS.length;                    // Lead ID is the last column
+    var idCol = colOf('Lead ID');
     var rowOf = {};
     if (lastRow > 1) {
       var ids = sheet.getRange(2, idCol, lastRow - 1, 1).getValues();
@@ -292,7 +330,7 @@ function admin(body) {
     var ids = Array.isArray(body.ids) ? body.ids.map(String) : [];
     if (!ids.length) return reply({ ok: false, error: 'No ids given' });
     if (!rows) return reply({ ok: true, deleted: 0 });
-    var idCol = COLS.length;
+    var idCol = colOf('Lead ID');
     var have = sheet.getRange(2, idCol, rows, 1).getValues();
     /* Collected then removed from the BOTTOM UP. Deleting top-down shifts every
        row beneath it, so the second deletion would land one row off and remove
@@ -339,7 +377,8 @@ function buildRow(L) {
     L.won === null || L.won === undefined ? '' : (L.won ? 'Yes' : 'No'),
     L.repeat ? 'Yes' : '',
     text(L.consent),
-    String(L.id)
+    String(L.id),
+    text(L.won ? L.prizeId : '')
   ];
 }
 

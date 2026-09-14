@@ -15,6 +15,17 @@
    on cream, on glass and on deep berry without redrawing anything.
    ============================================================================ */
 
+/* A roll seen from above, for the inside of a box. Generated rather than
+   pasted six times so the boxes cannot drift apart in style. */
+function rollTop(cx, cy, r) {
+  const q = n => +(n).toFixed(2);
+  return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="var(--soft)"
+            stroke="var(--ink)" stroke-width="3"/>
+    <path d="M${cx} ${q(cy - r * .58)}a${q(r * .58)} ${q(r * .58)} 0 1 1 ${q(-r * .58)} ${q(r * .58)}
+             a${q(r * .3)} ${q(r * .3)} 0 0 1 ${q(r * .3)} ${q(-r * .3)}"
+          fill="none" stroke="var(--ink)" stroke-width="2.6" stroke-linecap="round"/>`;
+}
+
 const SYMBOLS = {
 
   /* Top-down cinnamon roll — the spiral is the brand's whole visual hook */
@@ -152,6 +163,51 @@ const SYMBOLS = {
     <path d="M50 26c-6-4-16-10-16-16 0-4.4 3.6-7 7.4-7 4.4 0 8.6 4.6 8.6 10
              0-5.4 4.2-10 8.6-10 3.8 0 7.4 2.6 7.4 7 0 6-10 12-16 16Z"
           fill="var(--ink)"/>`,
+
+  /* The three boxes of rolls, seen from above with the lid off. Each has its
+     own outline so they read apart on a reel: two rolls make a long low box,
+     four a square, and six a box with its lid standing open behind it. */
+  box2: `
+    <rect x="7" y="29" width="86" height="44" rx="6"
+          fill="var(--pale)" stroke="var(--ink)" stroke-width="3.5"/>
+    ${rollTop(30, 51, 16.5)}${rollTop(70, 51, 16.5)}`,
+
+  box4: `
+    <rect x="13" y="13" width="74" height="74" rx="7"
+          fill="var(--pale)" stroke="var(--ink)" stroke-width="3.5"/>
+    ${rollTop(33, 33, 14.5)}${rollTop(67, 33, 14.5)}
+    ${rollTop(33, 67, 14.5)}${rollTop(67, 67, 14.5)}`,
+
+  box6: `
+    <path d="M12 38 22 9h56l10 29z" fill="var(--soft)"
+          stroke="var(--ink)" stroke-width="3.5" stroke-linejoin="round"/>
+    <rect x="7" y="37" width="86" height="56" rx="6"
+          fill="var(--pale)" stroke="var(--ink)" stroke-width="3.5"/>
+    ${rollTop(25, 53, 11.5)}${rollTop(50, 53, 11.5)}${rollTop(75, 53, 11.5)}
+    ${rollTop(25, 77, 11.5)}${rollTop(50, 77, 11.5)}${rollTop(75, 77, 11.5)}`,
+
+  /* Cup of Mood — a mug. The handle is what separates it from the takeaway
+     coffee cup, so it is drawn heavy. */
+  mug: `
+    <path d="M71 38h7a15 15 0 0 1 0 30h-7" fill="none"
+          stroke="var(--ink)" stroke-width="6.5" stroke-linecap="round"/>
+    <path d="M17 26h56v48a12 12 0 0 1-12 12H29a12 12 0 0 1-12-12z"
+          fill="var(--soft)" stroke="var(--ink)" stroke-width="3.5"
+          stroke-linejoin="round"/>
+    <path d="M45 68c-8-5.8-13-10.2-13-15.4 0-4.2 3.2-7.2 7-7.2 2.6 0 4.8 1.4 6 3.4
+             1.2-2 3.4-3.4 6-3.4 3.8 0 7 3 7 7.2 0 5.2-5 9.6-13 15.4z"
+          fill="var(--ink)"/>
+    <path d="M17 26h56" stroke="var(--ink)" stroke-width="4.5" stroke-linecap="round"/>`,
+
+  /* T-shirt merch */
+  tee: `
+    <path d="M35 13 15 23 5 44l15 8 6-10v46h48V42l6 10 15-8-10-21-20-10
+             c-2.6 7.4-8 12-15 12s-12.4-4.6-15-12z"
+          fill="var(--soft)" stroke="var(--ink)" stroke-width="3.5"
+          stroke-linejoin="round"/>
+    <path d="M50 44c5.5 0 10 4.5 10 10 0 4.7-3.8 8.5-8.5 8.5-3.9 0-7-3.1-7-7
+             0-3.3 2.7-6 6-6 2.8 0 5 2.2 5 5"
+          fill="none" stroke="var(--ink)" stroke-width="3.2" stroke-linecap="round"/>`,
 
   /* Brand heart */
   heart: `

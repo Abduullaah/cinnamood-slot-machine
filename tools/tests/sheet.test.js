@@ -198,5 +198,46 @@ console.log('\nThe kiosk still works after all that');
   check('as the first data row', sheets['Guests'].getLastRow() === 2, sheets['Guests'].getLastRow());
 }
 
+console.log('\nThe sheet counts prizes won, for the machine\'s second copy');
+{
+  post({ key: KEY, leads: [
+    { id:'P1', ts:'2026-09-16T13:05:00.000Z', first:'A', last:'A', email:'p1@e.co', phone:'2100000101',
+      prize:'Coffee of Your Choice', prizeId:'coffee', won:true, consent:'' },
+    { id:'P2', ts:'2026-09-16T13:40:00.000Z', first:'B', last:'B', email:'p2@e.co', phone:'2100000102',
+      prize:'Coffee of Your Choice', prizeId:'coffee', won:true, consent:'' },
+    { id:'P3', ts:'2026-09-16T14:10:00.000Z', first:'C', last:'C', email:'p3@e.co', phone:'2100000103',
+      prize:'Cup of Mood', prizeId:'mug', won:true, consent:'' },
+    { id:'P4', ts:'2026-09-16T14:20:00.000Z', first:'D', last:'D', email:'p4@e.co', phone:'2100000104',
+      prize:'Not This Time', prizeId:'none', won:false, consent:'' },
+    // A test the day before must never count against the event.
+    { id:'P5', ts:'2026-09-15T10:00:00.000Z', first:'E', last:'E', email:'p5@e.co', phone:'2100000105',
+      prize:'Cup of Mood', prizeId:'mug', won:true, consent:'' }
+  ]});
+  const G = sheets['Guests']._rows;
+  check('Prize ID is a new column after Lead ID', G[0][9] === 'Lead ID' && G[0][10] === 'Prize ID', G[0]);
+  const p3 = G.find(r => r && r[9] === 'P3');
+  check('the prize id is written', p3 && p3[10] === 'mug', p3);
+  const p4 = G.find(r => r && r[9] === 'P4');
+  check('a loss writes no prize id', p4 && p4[10] === '', p4);
+
+  const w = post({ key: KEY, wins: { since: '2026-09-16T12:55:00.000Z' } });
+  const n = id => (w.wins || []).filter(x => x.prize === id).length;
+  check('lists wins since the given moment', w.ok === true && n('coffee') === 2 && n('mug') === 1, w);
+  check('each win carries its Lead ID', (w.wins || []).map(x => x.lead).sort().join() === 'P1,P2,P3', w.wins);
+  check('losses are not listed', n('none') === 0, w.wins);
+  check('no guest details are returned',
+        (w.wins || []).every(x => Object.keys(x).sort().join() === 'lead,prize'), w.wins);
+  check('the public passphrase is required', post({ key: 'nope', wins: { since: 'x' } }).ok === false);
+  check('a bad date is refused', post({ key: KEY, wins: { since: 'not a date' } }).ok === false);
+  check('asking adds no row', sheets['Guests'].getLastRow() === 7, sheets['Guests'].getLastRow());
+
+  // Updating a row still finds it by Lead ID now that it is not the last column.
+  post({ key: KEY, leads: [{ id:'P4', ts:'2026-09-16T14:20:00.000Z', first:'D', last:'D', email:'p4@e.co',
+    phone:'2100000104', prize:'Box of 2 Rolls', prizeId:'box2', won:true, consent:'' }] });
+  check('an update still replaces the same row', sheets['Guests'].getLastRow() === 7);
+  check('delete still finds guests by Lead ID',
+        post({ admin: 'delete', adminKey: ADMIN, ids: ['P5'] }).deleted === 1);
+}
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed\n');
 process.exit(fail ? 1 : 0);

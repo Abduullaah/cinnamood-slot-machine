@@ -225,6 +225,20 @@ function bootSkin(opts = {}) {
   });
   window._cm = m;
 
+  /* ---- prizes ------------------------------------------------------------
+     The bank decides every pull: stock, the event clock, the jackpot rule.
+     It is told WHICH guest is pulling so that a reload mid-spin replays the
+     result they were already owed instead of drawing, and counting, again. */
+  const bank = new PrizeBank(cfg, { log: (k, msg) => leads._note(k, msg) });
+  m.decide = () => bank.decide(guest ? guest.id : null);
+
+  /* The sheet's count of prizes won is the second copy. Asked on boot and
+     every few minutes; it can only ever make the machine give away less. */
+  const askSheetForWins = () =>
+    bank.refreshFromSheet(leads.settings.syncUrl, leads.settings.syncKey);
+  setTimeout(askSheetForWins, 4000);
+  setInterval(askSheetForWins, 180000);
+
   /* ---- reveal ----------------------------------------------------------- */
   function showReveal(result) {
     const p = result.prize, win = result.isWin;
@@ -411,7 +425,7 @@ function bootSkin(opts = {}) {
   }
 
   /* ---- staff panel ------------------------------------------------------ */
-  new AdminPanel(m, audio, cfg, leads);
+  new AdminPanel(m, audio, cfg, leads, bank);
 
   function say(msg) { if (liveEl) liveEl.textContent = msg; }
 

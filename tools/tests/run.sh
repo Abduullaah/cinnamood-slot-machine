@@ -10,5 +10,7 @@ for t in storage sync settings-version; do
 done
 echo "── sheet ──"
 node tools/tests/sheet.test.js "$G" || fail=1
+echo "── prizes ──"
+node tools/tests/prizes.test.js site/shared || fail=1
 [ $fail -eq 0 ] && echo "ALL GREEN" || echo "SOMETHING FAILED"
 exit $fail
