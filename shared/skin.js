@@ -203,7 +203,7 @@ function bootSkin(opts = {}) {
       /* The cooldown is over. Whether the lever is live now depends on whether
          anyone has signed up for it — if not, the form comes back instead. */
       onArmed() {
-        if (guest) {
+        if (guest || cfg.testMode) {
           machine.classList.remove('locked');
           machine.classList.add('inviting');
         } else {
@@ -216,7 +216,7 @@ function bootSkin(opts = {}) {
         if (m.state !== 'idle') return;
         // Don't tease a lever nobody can reach, and don't chirp at an empty
         // room over the top of the form.
-        if (!guest || (gate && gate.open_)) return;
+        if ((!guest && !cfg.testMode) || (gate && gate.open_)) return;
         machine.classList.add('inviting');
         lever.tease();
         audio.tick(true);
@@ -230,7 +230,22 @@ function bootSkin(opts = {}) {
      It is told WHICH guest is pulling so that a reload mid-spin replays the
      result they were already owed instead of drawing, and counting, again. */
   const bank = new PrizeBank(cfg, { log: (k, msg) => leads._note(k, msg) });
-  m.decide = () => bank.decide(guest ? guest.id : null);
+
+  /* In test mode the event is days away, so every pull would lose. Instead a
+     20-minute rehearsal of the evening runs on a loop: when one has finished,
+     the next pull starts a fresh one with full stock. A rehearsal can never
+     overlap the real event, so this cannot touch the real prizes. */
+  const TEST = !!cfg.testMode;
+  function keepRehearsing() {
+    if (!TEST) return;
+    const w = bank.window();
+    if (!w.rehearsal || Date.now() > w.end + 2 * 60000) {
+      bank.endRehearsal();
+      bank.startRehearsal(20);
+    }
+  }
+  keepRehearsing();
+  m.decide = () => { keepRehearsing(); return bank.decide(guest ? guest.id : null); };
 
   /* The sheet's count of prizes won is the second copy. Asked on boot and
      every few minutes; it can only ever make the machine give away less. */
@@ -278,7 +293,7 @@ function bootSkin(opts = {}) {
   const lever = new Lever($('lever'), {
     audio,
     travel: opts.leverTravel || 230,
-    canPull: () => m.canSpin && !!guest,
+    canPull: () => m.canSpin && (!!guest || !!cfg.testMode),
     onPull: () => m.spin(),
     onProgress: v => {
       machine.style.setProperty('--pull', v.toFixed(3));
@@ -294,7 +309,7 @@ function bootSkin(opts = {}) {
      what the machine is visibly asking them to do, gets the form rather than a
      dead lever and no explanation. */
   const askForDetails = () => {
-    if (guest || !m.canSpin) return;
+    if (guest || !m.canSpin || cfg.testMode) return;
     gate && gate.open({ userGesture: true });
   };
   $('lever').addEventListener('pointerdown', askForDetails);
@@ -438,7 +453,21 @@ function bootSkin(opts = {}) {
      rather than being turned away as a duplicate. */
   machine.classList.add('locked');
   const returning = restoreGuest();
-  if (returning) {
+  if (cfg.testMode) {
+    /* No form, no guest: the lever is simply live. The label is deliberately
+       impossible to miss, because this must never be how the machine meets
+       real customers. */
+    machine.classList.remove('locked');
+    const tag = document.createElement('div');
+    tag.textContent = 'Test mode';
+    tag.setAttribute('style',
+      'position:fixed;top:calc(10px + env(safe-area-inset-top,0px));left:50%;' +
+      'translate:-50% 0;z-index:70;pointer-events:none;padding:6px 16px;' +
+      'border-radius:999px;background:#AC1E55;color:#F6F1EA;' +
+      "font:14px/1 'Lyno Stan',Verdana,sans-serif;text-transform:uppercase;" +
+      'letter-spacing:.24em;box-shadow:0 4px 18px rgba(0,0,0,.5)');
+    document.body.appendChild(tag);
+  } else if (returning) {
     setGuest(returning);
     say(`Welcome back ${returning.first}. Pull the lever.`);
   } else {
