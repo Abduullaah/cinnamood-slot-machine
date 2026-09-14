@@ -10,9 +10,9 @@
    "Restore defaults" puts it back to the values written in config.js.
 
    The one to know about while you're showcasing this: FORCE NEXT RESULT.
-   Set it to Box of Six and the very next pull lands the jackpot, complete with
-   the slow third reel. Then it clears itself, so you can't leave it on by
-   accident.
+   Pick a prize and the very next pull lands it, complete with the slow third
+   reel. Then it clears itself, so you can't leave it on by accident. Once the
+   event has started, a prize that has all gone cannot be forced.
    ============================================================================ */
 
 /* Prize names are typed by staff and then written into HTML attributes and into
@@ -27,13 +27,19 @@ function esc(s) {
 }
 
 class AdminPanel {
-  constructor(machine, audio, cfg, leads) {
+  constructor(machine, audio, cfg, leads, bank) {
     this.machine = machine;
     this.audio = audio;
     this.cfg = cfg;
     this.leads = leads || null;
+    this.bank = bank || null;
     this.stats = { spins: 0, byPrize: {} };
-    this.forced = null;
+
+    /* The prize state moves with the clock as well as with pulls, so it is
+       refreshed on a timer while the panel is open. */
+    setInterval(() => {
+      if (this.root && this.root.classList.contains('open')) this._syncPrizes();
+    }, 5000);
 
     this._injectStyles();
     this._buildDOM();
@@ -50,43 +56,18 @@ class AdminPanel {
     }
   }
 
-  /* Intercept the draw so the panel can force an outcome. */
+  /* Forcing is done by the prize bank, which still enforces stock. It used to
+     be done here by zeroing every other weight around the spin — a trick that
+     knew nothing about how many of a prize were left. */
   _hookMachine() {
     const m = this.machine;
-    const origSpin = m.spin.bind(m);
-    const self = this;
-
-    m.spin = function () {
-      if (self.forced) {
-        const forcedPrize = self.cfg.prizes.find(p => p.id === self.forced);
-        if (forcedPrize) {
-          /* Temporarily make this prize a certainty, spin, then restore.
-
-             The restore MUST be in a `finally`. Without it, any throw inside
-             origSpin() left the real prize table zeroed out — the machine would
-             hand out that one prize on every single pull until someone reloaded
-             the iPad, while the staff panel went on displaying the correct
-             weights, so nothing looked wrong. */
-          const snapshot = self.cfg.prizes.map(p => p.weight);
-          let ok = false;
-          try {
-            self.cfg.prizes.forEach(p => { p.weight = (p.id === self.forced) ? 1 : 0; });
-            ok = origSpin();
-          } finally {
-            self.cfg.prizes.forEach((p, i) => { p.weight = snapshot[i]; });
-          }
-          if (ok) { self.forced = null; self._syncForceUI(); }
-          return ok;
-        }
-      }
-      return origSpin();
-    };
-
     const origResult = m.hooks.onResult;
     m.hooks.onResult = (r) => {
       this.stats.spins++;
       this.stats.byPrize[r.prize.id] = (this.stats.byPrize[r.prize.id] || 0) + 1;
       this._syncStats();
+      this._syncForceUI();
+      this._syncPrizes();
       origResult(r);
     };
   }
@@ -132,6 +113,7 @@ class AdminPanel {
     this._syncLeads();
     this._syncLog();
     this._syncStats();
+    this._syncPrizes();
   }
   close() {
     this.root.classList.remove('open');
@@ -144,44 +126,75 @@ class AdminPanel {
       feel: this.cfg.feel,
       audio: this.cfg.audio
     });
-    this._syncOdds();
   }
 
-  _totalWeight() {
-    return this.cfg.prizes.reduce((s, p) => s + (Number(p.weight) || 0), 0);
-  }
+  /* ---- prizes ---------------------------------------------------------------
+     What is left, and what the clock is currently allowing out. This is the
+     staff's only view of the schedule, so it says it in plain words and
+     times rather than in odds. */
+  _syncPrizes() {
+    const b = this.bank, root = this.root;
+    if (!b || !root) return;
+    const ev = this.cfg.event;
+    const w = b.window(), now = Date.now(), plan = b.plan(w, now);
+    const dur = w.end - w.start;
+    const hm = t => {
+      const d = new Date(t), p = n => String(n).padStart(2, '0');
+      return p(d.getHours()) + ':' + p(d.getMinutes());
+    };
+    const day = t => new Date(t).toDateString() === new Date(now).toDateString()
+      ? 'today' : new Date(t).toLocaleDateString('en-GB',
+          { weekday: 'short', day: 'numeric', month: 'short' });
 
-  _syncOdds() {
-    const total = this._totalWeight();
-    this.root.querySelectorAll('[data-odds]').forEach(el => {
-      const id = el.dataset.odds;
-      const p = this.cfg.prizes.find(x => x.id === id);
-      const pct = total > 0 ? (p.weight / total) * 100 : 0;
-      el.textContent = pct.toFixed(1) + '%';
-      el.classList.toggle('zero', p.weight <= 0);
+    const set = (sel, v) => { const el = root.querySelector(sel); if (el) el.textContent = v; };
+    set('#cm-event-when', (w.rehearsal ? 'Rehearsal ' : 'Event ' + day(w.start) + ' ') +
+                          hm(w.start) + '–' + hm(w.end));
+
+    root.querySelectorAll('[data-left]').forEach(el => {
+      const p = this.cfg.prizes.find(x => x.id === el.dataset.left);
+      if (!p) return;
+      const left = b.left(p.id, w);
+      el.textContent = left + ' of ' + p.stock + ' left';
+      el.classList.toggle('zero', left <= 0);
     });
-    const winPct = this.cfg.prizes
-      .filter(p => p.tier !== 'none')
-      .reduce((s, p) => s + p.weight, 0) / (total || 1) * 100;
-    const rate = this.root.querySelector('#cm-winrate');
-    rate.textContent = winPct.toFixed(1) + '%';
 
-    /* Two states that silently produce a machine nobody can win on, and neither
-       one looked like an error before: every weight at zero (the draw falls
-       through to the last row, which is "Not This Time"), and every WINNING
-       weight at zero. Both used to render a tidy 0.0% and nothing else. */
-    const winTotal = this.cfg.prizes
-      .filter(p => p.tier !== 'none')
-      .reduce((s, p) => s + (Number(p.weight) || 0), 0);
-    const broken = total <= 0 || winTotal <= 0;
-    rate.classList.toggle('cm-bad', broken);
-    const warn = this.root.querySelector('#cm-warn');
-    warn.textContent = total <= 0
-      ? 'Every weight is zero — this machine cannot pick a prize. Give at least one prize a weight.'
-      : (winTotal <= 0
-        ? 'Every winning prize is at zero — nobody can win. Give at least one prize a weight.'
-        : '');
-    warn.hidden = !broken;
+    const jack = this.cfg.prizes.find(p => p.tier === 'jackpot');
+    let text;
+    if (!(dur > 0)) {
+      text = 'The event times in config.js are not valid. Nothing can be won.';
+    } else if (now < w.start) {
+      text = 'Nothing can be won until ' + hm(w.start) + ' ' + day(w.start) + '. ' +
+             'Pulls before then always lose, and forced results are not counted.';
+    } else {
+      text = plan.givenR + ' of ' + plan.R + ' prizes given. ' +
+        (plan.released < plan.R
+          ? 'Next one unlocks at ' + hm(plan.releaseAt(plan.released)) + '. '
+          : 'Every prize is unlocked. ');
+      if (jack) {
+        const notBefore = w.start + ev.jackpotNotBefore * dur;
+        const fallback = w.start + ev.jackpotFallback * dur;
+        if (b.left(jack.id, w) <= 0) text += 'The jackpot has been won.';
+        else if (plan.jackpot.length) text += 'The jackpot is in play now.';
+        else if (plan.givenR >= plan.R) text += 'The jackpot comes into play at ' + hm(plan.jackpotSince) + '.';
+        else text += 'The jackpot waits until the rest have gone, never before ' +
+                     hm(notBefore) + ', and is in play from ' + hm(fallback) + ' at the latest.';
+      }
+    }
+    if (!b.storageOk) text += ' THIS IPAD IS NOT SAVING THE PRIZE COUNT.';
+    const state = root.querySelector('#cm-prize-state');
+    if (state) {
+      state.textContent = text;
+      state.className = 'cm-syncstate' + (b.storageOk ? '' : ' bad');
+    }
+
+    const reh = root.querySelector('#cm-reh-on');
+    if (reh) reh.hidden = !w.rehearsal;
+    const start = root.querySelector('#cm-reh-start');
+    const stop = root.querySelector('#cm-reh-end');
+    if (start) start.hidden = w.rehearsal;
+    if (stop) stop.hidden = !w.rehearsal;
+
+    this._syncForceUI();
   }
 
   _syncStats() {
@@ -201,8 +214,15 @@ class AdminPanel {
   }
 
   _syncForceUI() {
+    if (!this.root) return;
+    const bank = this.bank;
+    const forced = bank ? bank.forced : null;
+    const w = bank ? bank.window() : null;
+    const before = w ? Date.now() < w.start : true;
     this.root.querySelectorAll('.cm-force').forEach(b => {
-      b.classList.toggle('on', b.dataset.force === this.forced);
+      b.classList.toggle('on', (b.dataset.force || null) === forced);
+      const gone = bank && b.dataset.force && !before && bank.left(b.dataset.force, w) <= 0;
+      b.disabled = !!gone;
     });
   }
 
@@ -221,34 +241,35 @@ class AdminPanel {
         </header>
 
         <section>
-          <h3>Prizes &amp; odds
-            <span class="cm-hint">Overall win rate <b id="cm-winrate">—</b></span>
+          <h3>Prizes
+            <span class="cm-hint" id="cm-event-when">—</span>
           </h3>
+          <p class="cm-testwarn" id="cm-reh-on" hidden>
+            Rehearsal running. The whole evening is squeezed into a few minutes so
+            you can watch the timing. It has its own count and does not touch the
+            real event's prizes.
+          </p>
+          <p class="cm-syncstate" id="cm-prize-state">—</p>
           <div class="cm-prizes">
-            ${this.cfg.prizes.map((p, i) => `
+            ${this.cfg.prizes.map((p, i) => p.tier === 'none' ? '' : `
               <div class="cm-prize" data-i="${i}">
                 <div class="cm-prow">
                   <input class="cm-label" value="${esc(p.label)}" data-f="label" aria-label="Prize name">
-                  <span class="cm-odds" data-odds="${esc(p.id)}">—</span>
+                  <span class="cm-left" data-left="${esc(p.id)}">—</span>
                 </div>
                 <input class="cm-sub" value="${esc(p.sub || '')}" data-f="sub"
                        placeholder="Supporting line" aria-label="Supporting line">
-                <div class="cm-wrow">
-                  <!-- Both controls share one range. They used to disagree
-                       (slider 0-100, number 0-1000) and the slider pinned its
-                       value with Math.min(100,…), so a weight of 400 was
-                       silently destroyed the next time anyone nudged it. -->
-                  <input type="range" min="0" max="${AdminPanel.MAX_WEIGHT}" step="1"
-                         value="${p.weight}" data-f="weight" aria-label="Weight">
-                  <input type="number" min="0" max="${AdminPanel.MAX_WEIGHT}" step="1"
-                         value="${p.weight}" data-f="weightnum" aria-label="Weight value">
-                </div>
               </div>`).join('')}
           </div>
-          <p class="cm-warn" id="cm-warn" role="alert" hidden></p>
+          <div class="cm-btnrow">
+            <button class="cm-ghost" id="cm-reh-start">Rehearse the evening in 20 minutes</button>
+            <button class="cm-ghost" id="cm-reh-end" hidden>End rehearsal</button>
+          </div>
           <p class="cm-note">
-            Weights are relative, not percentages — the real odds are shown on the
-            right and always add up to 100%. Set one to 0 to retire it.
+            How many of each prize exist, when they unlock and when the jackpot can
+            come up are fixed in the machine's settings and cannot be changed here,
+            so nothing on a busy counter can send the wrong prize out. Names can be
+            edited.
           </p>
         </section>
 
@@ -256,10 +277,12 @@ class AdminPanel {
           <h3>Force next result <span class="cm-hint">for demos</span></h3>
           <div class="cm-forces">
             ${this.cfg.prizes.map(p => `
-              <button class="cm-force" data-force="${p.id}">${p.label}</button>`).join('')}
+              <button class="cm-force" data-force="${esc(p.id)}">${esc(p.label)}</button>`).join('')}
             <button class="cm-force cm-clear" data-force="">Off</button>
           </div>
-          <p class="cm-note">Applies to the next pull only, then switches itself off.</p>
+          <p class="cm-note">Applies to the next pull only, then switches itself off.
+            From the start of the event, a forced prize counts as given, and one
+            that has all gone cannot be forced.</p>
         </section>
 
         <section>
@@ -436,34 +459,42 @@ class AdminPanel {
     root.querySelectorAll('.cm-prize').forEach(row => {
       const i = +row.dataset.i;
       const p = this.cfg.prizes[i];
-      const range = row.querySelector('[data-f="weight"]');
-      const num = row.querySelector('[data-f="weightnum"]');
-
       row.querySelector('[data-f="label"]').oninput = e => {
         p.label = e.target.value; this._save();
       };
       row.querySelector('[data-f="sub"]').oninput = e => {
         p.sub = e.target.value; this._save();
       };
-      const setW = v => {
-        // Clamp at BOTH ends. The upper clamp was missing, and the slider had a
-        // lower ceiling than the number field, so the two controls disagreed.
-        p.weight = clamp(Math.round(Number(v) || 0), 0, AdminPanel.MAX_WEIGHT);
-        range.value = p.weight;
-        num.value = p.weight;
-        this._save();
-      };
-      range.oninput = e => { setW(e.target.value); this.audio?.tick(true); };
-      num.oninput = e => setW(e.target.value);
     });
 
     root.querySelectorAll('.cm-force').forEach(b => {
       b.onclick = () => {
-        this.forced = b.dataset.force || null;
+        if (this.bank) this.bank.forceNext(b.dataset.force || null);
         this._syncForceUI();
         this.audio?.tick();
       };
     });
+
+    const rehStart = root.querySelector('#cm-reh-start');
+    const rehEnd = root.querySelector('#cm-reh-end');
+    rehStart.onclick = () => {
+      if (!this.bank) return;
+      const r = this.bank.startRehearsal(20);
+      if (!r.ok) {
+        const st = root.querySelector('#cm-prize-state');
+        this._syncPrizes();
+        if (st) { st.textContent = r.reason; st.className = 'cm-syncstate bad'; }
+        return;
+      }
+      this.audio?.tick();
+      this._syncPrizes();
+    };
+    rehEnd.onclick = () => {
+      if (!this.bank) return;
+      this.bank.endRehearsal();
+      this.audio?.tick();
+      this._syncPrizes();
+    };
 
     const bindRange = (id, outId, fmt, apply) => {
       const el = root.querySelector(id), out = root.querySelector(outId);
@@ -502,7 +533,7 @@ class AdminPanel {
     };
 
     this._bindLeads();
-    this._syncOdds();
+    this._syncPrizes();
     this._syncForceUI();
   }
 
@@ -817,6 +848,11 @@ class AdminPanel {
     .cm-odds{font-family:'Lyno Stan',Verdana,sans-serif;font-size:16px;color:#AC1E55;
       min-width:56px;text-align:right;flex:0 0 auto}
     .cm-odds.zero{opacity:.28}
+    .cm-left{font-family:Verdana,sans-serif;font-size:11.5px;color:#AC1E55;font-weight:700;
+      white-space:nowrap;flex:0 0 auto;padding:3px 9px;border-radius:999px;
+      background:rgba(172,30,85,.08)}
+    .cm-left.zero{background:#AC1E55;color:#F6F1EA}
+    .cm-force:disabled{opacity:.3;cursor:default;text-decoration:line-through}
     .cm-wrow{display:flex;align-items:center;gap:10px;margin-top:6px}
     .cm-wrow input[type=range]{flex:1;min-width:0}
     .cm-wrow input[type=number]{width:62px;border:1px solid rgba(172,30,85,.2);

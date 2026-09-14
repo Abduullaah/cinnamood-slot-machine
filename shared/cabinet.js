@@ -27,7 +27,7 @@ function buildCabinet(cfg, opts = {}) {
   /* The paytable is generated from the prize table, so it can never drift out
      of sync with the real odds — change the prizes and the machine's printed
      glass changes with them. */
-  const wins = cfg.prizes.filter(p => p.tier !== 'none' && p.weight > 0);
+  const wins = cfg.prizes.filter(p => p.tier !== 'none' && (p.stock | 0) > 0);
   const jackpot = wins.find(p => p.tier === 'jackpot') || wins[0];
 
   const payRows = wins.map(p => `

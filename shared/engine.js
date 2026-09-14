@@ -463,8 +463,18 @@ class SlotMachine {
     this.state = 'spinning';
     this._lastInteraction = performance.now();
 
-    /* 1. Decide the result. Everything after this is choreography. */
-    const prize = drawPrize(this.cfg.prizes);
+    /* 1. Decide the result. Everything after this is choreography.
+       `decide` is the prize bank (prizes.js), which knows stock and the event
+       clock. The bare weighted draw is only a fallback for a machine without
+       one, and a bank that throws must not leave the reels stuck spinning. */
+    let prize;
+    try {
+      prize = this.decide ? this.decide() : drawPrize(this.cfg.prizes);
+    } catch (e) {
+      prize = null;
+      setTimeout(() => { throw e; });      // reaches the activity log
+    }
+    if (!prize) prize = this.cfg.prizes.find(p => p.tier === 'none') || this.cfg.prizes[this.cfg.prizes.length - 1];
     const isWin = prize.tier !== 'none';
     const nearMiss = !isWin && Math.random() < this.cfg.feel.nearMissRate;
 
