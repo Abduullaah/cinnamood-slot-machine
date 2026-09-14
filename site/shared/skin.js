@@ -12,6 +12,10 @@ function bootSkin(opts = {}) {
   const H = opts.machineH || 1320;
   const ROWS = opts.rows || 3;
 
+  /* Before anything reads storage: a new reset stamp wipes this iPad clean. */
+  let freshStart = 0;
+  try { freshStart = applyResetStamp(localStorage, CINNAMOOD_CONFIG.resetStamp); } catch (e) {}
+
   const cfg = loadConfig();
   const audio = new CinnaAudio(cfg.audio);
 
@@ -24,6 +28,7 @@ function bootSkin(opts = {}) {
      Declared up here because the machine's hooks and the lever's canPull both
      close over it, and both are built further down. */
   const leads = new LeadStore(cfg.leads || {});
+  if (freshStart) leads._note('reset', 'Fresh start — cleared everything saved on this iPad');
   let gate = null;
   let guest = null;
   let guestTimer = null;
@@ -461,8 +466,11 @@ function bootSkin(opts = {}) {
     const tag = document.createElement('div');
     tag.textContent = 'Test mode';
     tag.setAttribute('style',
-      'position:fixed;top:calc(10px + env(safe-area-inset-top,0px));left:50%;' +
-      'translate:-50% 0;z-index:70;pointer-events:none;padding:6px 16px;' +
+      /* Top right: centred, it sat on the marquee in landscape; top left is the
+         staff panel's hidden corner. */
+      'position:fixed;top:calc(12px + env(safe-area-inset-top,0px));' +
+      'right:calc(12px + env(safe-area-inset-right,0px));' +
+      'z-index:70;pointer-events:none;padding:6px 16px;' +
       'border-radius:999px;background:#AC1E55;color:#F6F1EA;' +
       "font:14px/1 'Lyno Stan',Verdana,sans-serif;text-transform:uppercase;" +
       'letter-spacing:.24em;box-shadow:0 4px 18px rgba(0,0,0,.5)');

@@ -12,5 +12,12 @@ echo "── sheet ──"
 node tools/tests/sheet.test.js "$G" || fail=1
 echo "── prizes ──"
 node tools/tests/prizes.test.js site/shared || fail=1
+# The event clock is read as the iPad's local time. Prove the rules do not
+# depend on which zone the machine running them happens to be in.
+echo "── prizes, other time zones ──"
+TZ=Asia/Dubai QUICK=1 node tools/tests/prizes.test.js site/shared | tail -2 || fail=1
+TZ=America/New_York QUICK=1 node tools/tests/prizes.test.js site/shared | tail -2 || fail=1
+echo "── engine ──"
+node tools/tests/engine.test.js site/shared || fail=1
 [ $fail -eq 0 ] && echo "ALL GREEN" || echo "SOMETHING FAILED"
 exit $fail

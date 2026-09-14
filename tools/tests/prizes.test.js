@@ -156,7 +156,7 @@ function breach(wins) {
 console.log('\nThousands of evenings: the hard rules are never broken');
 const SIZES = [30, 60, 100, 150, 200, 300];
 const PATTERNS = ['uniform', 'early', 'late', 'bursty'];
-const RUNS = 300;
+const RUNS = process.env.QUICK ? 40 : 300;
 const table = {};
 for (const pattern of PATTERNS) {
   for (const size of SIZES) {
@@ -205,6 +205,10 @@ Object.keys(table).forEach(k => {
               r.firstHour.padStart(12) + '   ' + r.order.join(' > '));
 });
 
+/* The statistical checks need the full sample: with QUICK's 40 evenings, box of
+   4 and box of 6 (released minutes apart) can swap places by chance alone. The
+   hard rules above are checked at every sample size. */
+if (!process.env.QUICK) {
 console.log('\nThe timing does what was asked, at realistic crowd sizes');
 for (const size of [100, 150, 200]) {
   for (const pattern of PATTERNS) {
@@ -228,6 +232,7 @@ for (const size of [100, 150, 200]) {
 }
 check('a quiet night (60 guests) still gives out the jackpot in 95% of evenings',
       table['uniform 60'].jack >= 95, table['uniform 60'].jack);
+}
 
 /* ---------------------------------------------------------------------------
    One pull at a time: the edges
@@ -454,6 +459,116 @@ console.log('\nThe machine never throws on a broken config');
   check('invalid event times: nothing won rather than everything', won === 0, won);
 }
 
+console.log('\nHow winners spread across the evening (150 guests, ' + (process.env.QUICK ? 100 : 1000) + ' evenings)');
+{
+  const N = process.env.QUICK ? 100 : 1000;
+  const BLOCK = 15 * MIN, blocks = Math.ceil((DUR + 30 * MIN) / BLOCK);
+  const perBlock = new Array(blocks).fill(0);
+  const unitTimes = {};
+  const totals = {};
+  for (let s = 1; s <= N; s++) {
+    const { wins } = evening(150, 'uniform', 900000 + s);
+    totals[wins.length] = (totals[wins.length] || 0) + 1;
+    const seen = {};
+    wins.forEach(x => {
+      const b = Math.floor((x.t - START) / BLOCK);
+      if (b >= 0 && b < blocks) perBlock[b]++;
+      seen[x.id] = (seen[x.id] || 0) + 1;
+      const k = x.id + (stockOf(x.id) > 1 ? ' #' + seen[x.id] : '');
+      (unitTimes[k] = unitTimes[k] || []).push(x.t);
+    });
+  }
+  const pct = (a, q) => { const b = a.slice().sort((x, y) => x - y); return b[Math.min(b.length - 1, Math.floor(q * b.length))]; };
+  console.log('  average winners per 15 minutes:');
+  perBlock.forEach((n, i) => console.log('    ' + hm(START + i * BLOCK) + '  ' +
+    (n / N).toFixed(2).padStart(5) + '  ' + '#'.repeat(Math.round(n / N * 10))));
+  console.log('  when each prize goes (5% / median / 95% of evenings):');
+  Object.keys(unitTimes).sort((a, b) => pct(unitTimes[a], .5) - pct(unitTimes[b], .5)).forEach(k =>
+    console.log('    ' + k.padEnd(12) + hm(pct(unitTimes[k], .05)) + ' / ' + hm(pct(unitTimes[k], .5)) +
+                ' / ' + hm(pct(unitTimes[k], .95)) + '   (' + unitTimes[k].length + ' of ' + N + ')'));
+  console.log('  prizes given per evening: ' + JSON.stringify(totals));
+  const scattered = perBlock.slice(0, 7).every(n => n / N >= 0.5);
+  const clumped = perBlock.some(n => n / N > 3);
+  check('winners in every quarter hour from 17:00 to 18:45', scattered, perBlock.map(n => +(n / N).toFixed(2)));
+  check('no quarter hour averages more than 3 winners', !clumped);
+  check('never more than 11 prizes in an evening', Object.keys(totals).every(k => +k <= 11), totals);
+}
+
+console.log('\nRandom settings, stock and crowds: the hard rules hold for ANY tuning');
+{
+  const R0 = rng(424242);
+  const FUZZ = process.env.QUICK ? 150 : 1500;
+  const pick = (a, b) => a + R0() * (b - a);
+  const fmt = t => { const x = new Date(t), p = v => String(v).padStart(2, '0');
+    return x.getFullYear() + '-' + p(x.getMonth() + 1) + '-' + p(x.getDate()) + 'T' + p(x.getHours()) + ':' + p(x.getMinutes()); };
+  let firstBreach = null, pulls = 0, prizesOut = 0;
+  for (let n = 0; n < FUZZ; n++) {
+    const c = cfgCopy();
+    const d = new Date(2026, 8, 1 + Math.floor(R0() * 50), Math.floor(pick(6, 19)), Math.floor(R0() * 4) * 15);
+    const lenMin = Math.round(pick(20, 300));
+    c.event.start = fmt(d.getTime());
+    c.event.end = fmt(d.getTime() + lenMin * MIN);
+    c.event.releaseSpan = pick(0.2, 1);
+    c.event.jackpotNotBefore = pick(0, 0.9);
+    c.event.jackpotFallback = pick(c.event.jackpotNotBefore, 1);
+    c.event.finalStretch = pick(0, 1.2);
+    c.event.chance = { base: pick(0, 1), perMinute: pick(0, 0.5), perBacklog: pick(0, 0.5),
+                       finalFloor: pick(0, 1), max: pick(0.05, 1) };
+    c.prizes.forEach(p => { if (p.tier !== 'none') { p.stock = Math.floor(R0() * 7); p.weight = Math.floor(R0() * 10); } });
+    const s0 = S.parseLocalTime(c.event.start), dur = S.parseLocalTime(c.event.end) - s0;
+    const storage = mkStorage();
+    let now = s0 - 20 * MIN;
+    const mk = () => new S.PrizeBank(c, { now: () => now, random: R0, storage, log: () => {} });
+    let bank = mk();
+    const wins = [];
+    const guests = Math.floor(R0() * 400);
+    for (let g = 0; g < guests; g++) {
+      now += R0() * 2 * (dur + 60 * MIN) / Math.max(1, guests);
+      if (R0() < 0.03) now -= R0() * 10 * MIN;       // the iPad clock is corrected backwards
+      if (R0() < 0.02) bank = mk();                   // the page reloads
+      let forced = null;
+      if (R0() < 0.03) { forced = c.prizes[Math.floor(R0() * c.prizes.length)].id; bank.forceNext(forced); }
+      const p = bank.decide('Z' + n + '_' + g);
+      pulls++;
+      if (p.tier !== 'none') { wins.push({ t: now, id: p.id, forced: forced === p.id }); prizesOut++; }
+    }
+    const b = fuzzBreach(wins, c, s0, dur);
+    if (b && !firstBreach) firstBreach = { breach: b, evening: n, event: c.event,
+                                           stock: c.prizes.map(p => [p.id, p.stock]) };
+  }
+  check(FUZZ + ' random evenings, ' + pulls + ' pulls, ' + prizesOut +
+        ' prizes, with clock corrections, reloads and forced results: no rule broken', !firstBreach, firstBreach);
+}
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed\n');
 process.exit(fail ? 1 : 0);
+}
+
+/* The hard rules for any configuration. Forced results are staff decisions:
+   they must respect stock, but not the clock. */
+function fuzzBreach(wins, c, s0, dur) {
+  const ev = c.event, n = {}, unit = {};
+  const stock = id => c.prizes.find(p => p.id === id).stock | 0;
+  const regIds = c.prizes.filter(p => p.tier !== 'none' && p.tier !== 'jackpot').map(p => p.id);
+  const Rr = c.prizes.filter(p => regIds.includes(p.id)).reduce((s, p) => s + (p.stock | 0), 0);
+  let reg = 0;
+  for (const x of wins) {
+    if (x.t < s0) { if (!x.forced) return 'a prize won before the start'; continue; }
+    n[x.id] = (n[x.id] || 0) + 1;
+    if (n[x.id] > stock(x.id)) return x.id + ' given beyond its stock of ' + stock(x.id);
+    const isReg = regIds.includes(x.id);
+    if (!x.forced) {
+      if (x.id === 'jackpot') {
+        if (x.t < s0 + ev.jackpotNotBefore * dur - 1) return 'jackpot before its earliest time';
+        if (reg < Rr && x.t < s0 + Math.max(ev.jackpotFallback, ev.jackpotNotBefore) * dur - 1)
+          return 'jackpot while other prizes were left, before the fallback';
+      } else if (isReg) {
+        if (x.t < s0 + (reg / Rr) * ev.releaseSpan * dur - 1) return 'a prize before its release';
+        const k = unit[x.id] || 0;
+        if (x.t < s0 + (k / stock(x.id)) * ev.releaseSpan * dur - 1) return x.id + ' #' + (k + 1) + ' before its spread time';
+      }
+    }
+    if (isReg) { reg++; unit[x.id] = (unit[x.id] || 0) + 1; }
+  }
+  return null;
 }

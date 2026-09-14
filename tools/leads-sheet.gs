@@ -56,7 +56,7 @@ var ADMIN_KEY = 'qv9wUTS0shgpQ4JudzqFG4qKasPNz0RUnMUy';
    deployment was pinned to an old version, a second deployment nobody was using
    had the new one, and from the outside all three looked identical. Bump this
    whenever the script changes and that question is answerable in one request. */
-var SCRIPT_VERSION = 5;
+var SCRIPT_VERSION = 6;
 
 /* ---------------------------------------------------------------------------
    2. Nothing below here needs editing.
@@ -102,6 +102,30 @@ function colOf(head) {
    ============================================================================ */
 
 function doPost(e) {
+  var body;
+  try {
+    body = JSON.parse(e.postData.contents);
+  } catch (err) {
+    return reply({ ok: false, error: 'Unreadable request' });
+  }
+
+  /* READS DO NOT QUEUE BEHIND WRITES.
+     The "has this guest played" check, the ping and the prize count only read,
+     so they are answered without the lock. They used to wait for it like
+     everything else, and a guest typing their details while the previous
+     guest's result was being written sat on "Checking…" until the kiosk's
+     seven-second limit gave up — which happened twice in a row in testing.
+     The one thing the lock protects, two writers picking the same empty row,
+     cannot happen on a read. */
+  if (!body.admin && String(body.key || '') === PASSPHRASE &&
+      (body.ping || body.check || body.wins)) {
+    try {
+      return answerRead(body);
+    } catch (err) {
+      return reply({ ok: false, error: String(err) });
+    }
+  }
+
   /* Every write takes a lock. Two iPads posting in the same instant would
      otherwise both read the same last row and one would overwrite the other's
      guest. */
@@ -113,7 +137,6 @@ function doPost(e) {
   }
 
   try {
-    var body = JSON.parse(e.postData.contents);
 
     /* ---- admin commands ---------------------------------------------------
        Checked FIRST and against their own key, so the public passphrase can
@@ -131,6 +154,69 @@ function doPost(e) {
       return reply({ ok: false, error: 'Wrong passphrase' });
     }
 
+    var leads = body.leads;
+    if (!Array.isArray(leads)) return reply({ ok: false, error: 'No leads sent' });
+
+    var sheet = ensureWorkbook();
+
+    /* Index the ids already present, once, rather than searching the whole
+       column again for every lead in the batch. */
+    var lastRow = sheet.getLastRow();
+    var idCol = colOf('Lead ID');
+    var rowOf = {};
+    if (lastRow > 1) {
+      var ids = sheet.getRange(2, idCol, lastRow - 1, 1).getValues();
+      for (var i = 0; i < ids.length; i++) {
+        if (ids[i][0]) rowOf[String(ids[i][0])] = i + 2;
+      }
+    }
+
+    var saved = [];
+    var appended = [];
+    var queued = {};        // id -> index within `appended`, for this batch only
+
+    for (var j = 0; j < leads.length; j++) {
+      var L = leads[j] || {};
+      if (!L.id) continue;
+      var id = String(L.id);
+      var row = buildRow(L);
+
+      if (rowOf[id] > 0) {
+        // Already in the sheet: the same guest coming back with their result
+        // attached, or a retry whose reply never arrived. Replace, never
+        // duplicate.
+        sheet.getRange(rowOf[id], 1, 1, row.length).setValues([row]);
+      } else if (queued[id] !== undefined) {
+        /* The same id twice inside ONE batch. It is not in the sheet yet, so
+           there is no row to overwrite — the later version simply replaces the
+           one already staged. Tracking this in its own map matters: a previous
+           version parked a -1 in rowOf as a marker, but the append test read
+           `rowOf[id] > 0`, so -1 fell through and the guest was written twice. */
+        appended[queued[id]] = row;
+      } else {
+        queued[id] = appended.length;
+        appended.push(row);
+      }
+      saved.push(id);
+    }
+
+    if (appended.length) {
+      var start = sheet.getLastRow() + 1;
+      sheet.getRange(start, 1, appended.length, COLS.length).setValues(appended);
+      // Same reasoning as above: the stripe is not worth failing a write over.
+      try { styleRows(sheet, start, appended.length); } catch (err) {}
+    }
+
+    return reply({ ok: true, saved: saved });
+  } catch (err) {
+    return reply({ ok: false, error: String(err) });
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/* The three kiosk requests that only READ. Answered outside the lock. */
+function answerRead(body) {
     /* The staff panel's Test button. Proves the address and the passphrase are
        right without putting a row in the sheet, so it can be pressed as often
        as you like while setting up. */
@@ -198,65 +284,7 @@ function doPost(e) {
       return reply({ ok: true, wins: wins });
     }
 
-    var leads = body.leads;
-    if (!Array.isArray(leads)) return reply({ ok: false, error: 'No leads sent' });
-
-    var sheet = ensureWorkbook();
-
-    /* Index the ids already present, once, rather than searching the whole
-       column again for every lead in the batch. */
-    var lastRow = sheet.getLastRow();
-    var idCol = colOf('Lead ID');
-    var rowOf = {};
-    if (lastRow > 1) {
-      var ids = sheet.getRange(2, idCol, lastRow - 1, 1).getValues();
-      for (var i = 0; i < ids.length; i++) {
-        if (ids[i][0]) rowOf[String(ids[i][0])] = i + 2;
-      }
-    }
-
-    var saved = [];
-    var appended = [];
-    var queued = {};        // id -> index within `appended`, for this batch only
-
-    for (var j = 0; j < leads.length; j++) {
-      var L = leads[j] || {};
-      if (!L.id) continue;
-      var id = String(L.id);
-      var row = buildRow(L);
-
-      if (rowOf[id] > 0) {
-        // Already in the sheet: the same guest coming back with their result
-        // attached, or a retry whose reply never arrived. Replace, never
-        // duplicate.
-        sheet.getRange(rowOf[id], 1, 1, row.length).setValues([row]);
-      } else if (queued[id] !== undefined) {
-        /* The same id twice inside ONE batch. It is not in the sheet yet, so
-           there is no row to overwrite — the later version simply replaces the
-           one already staged. Tracking this in its own map matters: a previous
-           version parked a -1 in rowOf as a marker, but the append test read
-           `rowOf[id] > 0`, so -1 fell through and the guest was written twice. */
-        appended[queued[id]] = row;
-      } else {
-        queued[id] = appended.length;
-        appended.push(row);
-      }
-      saved.push(id);
-    }
-
-    if (appended.length) {
-      var start = sheet.getLastRow() + 1;
-      sheet.getRange(start, 1, appended.length, COLS.length).setValues(appended);
-      // Same reasoning as above: the stripe is not worth failing a write over.
-      try { styleRows(sheet, start, appended.length); } catch (err) {}
-    }
-
-    return reply({ ok: true, saved: saved });
-  } catch (err) {
-    return reply({ ok: false, error: String(err) });
-  } finally {
-    lock.releaseLock();
-  }
+    return reply({ ok: false, error: 'Not a read request' });
 }
 
 /* ============================================================================
