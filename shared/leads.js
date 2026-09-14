@@ -404,7 +404,7 @@ class LeadStore {
     if (!url || !navigator.onLine) return null;
 
     const ctrl = typeof AbortController === 'function' ? new AbortController() : null;
-    const killer = ctrl ? setTimeout(() => ctrl.abort(), timeoutMs || 7000) : null;
+    const killer = ctrl ? setTimeout(() => ctrl.abort(), timeoutMs || 10000) : null;
     try {
       const res = await fetch(url, {
         method: 'POST',

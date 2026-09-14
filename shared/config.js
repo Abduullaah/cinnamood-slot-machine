@@ -41,24 +41,38 @@ const CINNAMOOD_CONFIG = {
   ------------------------------------------------------------------------- */
   testMode: true,
 
+  /* ---- FRESH START -------------------------------------------------------
+     Change this string and every iPad that opens the new version clears
+     everything the machine has saved on it — guests, activity log, prize
+     count, rehearsal, staff settings — exactly once.
+
+     It is how test data is wiped off devices nobody can reach by hand.
+     NEVER change it during the event: a guest not yet sent to the sheet would
+     be lost with everything else.
+  ------------------------------------------------------------------------- */
+  resetStamp: 'fresh-2026-09-14',
+
   /* ---- THE EVENT ---------------------------------------------------------
      start / end   — the iPad's own local time. Nothing is won before start.
                      CHANGE THESE if the event times change.
 
      releaseSpan   — the regular prizes (everything but the jackpot) are let
                      out one at a time, evenly, across this share of the event.
-                     0.75 of 5–7pm puts one out roughly every 9 minutes from
-                     5:00 to about 6:21, leaving the rest of the evening for
-                     the jackpot and for anything a quiet room left behind.
+                     0.85 of 5–7pm puts one out roughly every 10 minutes from
+                     5:00 to about 6:32, so there are still winners in the last
+                     half hour, leaving the end for the jackpot and for
+                     anything a quiet room left behind. (0.75 was tried first:
+                     at 150 guests everything was gone by 6:31 and the last
+                     half hour had no winners at all.)
 
      jackpotNotBefore — share of the event before which the jackpot can NEVER
                      come up, whatever else has happened. 0.5 = 6:00pm.
      jackpotFallback  — after the halfway point the jackpot waits for every
                      other prize to go. If some are still left at this point
-                     (0.8 = 6:36pm), it comes into play anyway, so it cannot
+                     (0.9 = 6:48pm), it comes into play anyway, so it cannot
                      go home unclaimed.
 
-     finalStretch  — from here (6:36pm) anything still on the counter gets at
+     finalStretch  — from here (6:48pm) anything still on the counter gets at
                      least an even chance on every pull, so the prizes go out.
 
      chance        — how likely a released prize is to come up on a pull.
@@ -71,10 +85,10 @@ const CINNAMOOD_CONFIG = {
   event: {
     start: '2026-09-16T17:00',
     end:   '2026-09-16T19:00',
-    releaseSpan: 0.75,
+    releaseSpan: 0.85,
     jackpotNotBefore: 0.5,
-    jackpotFallback: 0.8,
-    finalStretch: 0.8,
+    jackpotFallback: 0.9,
+    finalStretch: 0.9,
     chance: { base: 0.2, perMinute: 0.06, perBacklog: 0.15, finalFloor: 0.5, max: 0.9 }
   },
 
@@ -321,6 +335,25 @@ const CINNAMOOD_CONFIG = {
    decide whether the right prize goes out at the right time, and a slider
    nudged on a busy counter must not be able to change that.
    --------------------------------------------------------------------------- */
+/* Clears every `cinnamood.` key once per stamp. Returns how many were cleared;
+   0 when there was nothing to do or storage refused. */
+function applyResetStamp(storage, stamp) {
+  if (!stamp || !storage) return 0;
+  try {
+    if (storage.getItem('cinnamood.reset') === String(stamp)) return 0;
+    const doomed = [];
+    for (let i = 0; i < storage.length; i++) {
+      const k = storage.key(i);
+      if (k && k.indexOf('cinnamood.') === 0) doomed.push(k);
+    }
+    doomed.forEach(k => storage.removeItem(k));
+    storage.setItem('cinnamood.reset', String(stamp));
+    return doomed.length;
+  } catch (e) {
+    return 0;
+  }
+}
+
 function loadConfig() {
   const base = JSON.parse(JSON.stringify(CINNAMOOD_CONFIG));
   try {
