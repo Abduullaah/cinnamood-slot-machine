@@ -15,7 +15,7 @@
 <link rel="apple-touch-icon" href="shared/img/icon.png">
 <link rel="icon" href="shared/img/icon.png">
 <title>Cinnamood</title>
-<link rel="stylesheet" href="shared/base.css?v=11">
+<link rel="stylesheet" href="shared/base.css?v=12">
 <style>
 /* ============================================================================
    APPROACH B — MAISON
@@ -75,7 +75,11 @@ body{ background:#120207; }
 .living{ position:fixed; inset:-20%; pointer-events:none; z-index:0; }
 .living i{
   position:absolute; display:block; border-radius:50%;
-  filter:blur(80px); opacity:.42; will-change:transform;
+  /* No blur filter. Each bloom is already a radial gradient that fades to
+     nothing, so an 80px blur on top changed almost nothing you can see — while
+     costing a huge blurred texture per bloom, re-used on every frame of a
+     never-ending animation. */
+  opacity:.42; will-change:transform;
 }
 .living i:nth-child(1){
   width:46vmax; height:46vmax; left:4%; top:6%;
@@ -116,7 +120,13 @@ body{ background:#120207; }
 
 /* Matte grain. Without it the gradients read as plastic; with it, as clay. */
 .grain{
-  position:fixed; inset:-50%; pointer-events:none; z-index:60; opacity:.26;
+  /* Screen-sized, on its own compositing layer. It sat at inset:-50% — four
+     times the screen's area as one texture, which on a retina iPad is a lot of
+     GPU memory — and, with an overlay blend above the whole machine, it was
+     re-blended into every frame of every spin. The tiles repeat, so the
+     oversizing bought nothing. */
+  position:fixed; inset:0; pointer-events:none; z-index:60; opacity:.26;
+  transform:translateZ(0);
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.86' numOctaves='3'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E");
   mix-blend-mode:overlay;
 }
@@ -245,18 +255,20 @@ body{ background:#120207; }
   box-shadow:0 0 12px rgba(209,139,141,.6);
   opacity:.5; transition:opacity .3s ease, box-shadow .3s ease;
 }
-.machine.spinning .bulbs i{ animation:chase .7s cubic-bezier(.1,.85,.3,1) infinite; }
-@keyframes chase{
-  0%,100%{ opacity:1; box-shadow:0 0 20px rgba(246,241,234,.95), 0 0 34px rgba(209,139,141,.7); }
-  50%    { opacity:.42; box-shadow:0 0 6px rgba(209,139,141,.4); }
+/* The glow is SET by the state and only the opacity animates. Animating
+   box-shadow repainted every bulb on every frame — about thirty glows, the
+   whole time the reels were turning. Opacity is handled by the GPU and a
+   bulb fading still reads as a filament cooling, glow and all. */
+.machine.spinning .bulbs i{
+  box-shadow:0 0 20px rgba(246,241,234,.95), 0 0 34px rgba(209,139,141,.7);
+  animation:chase .7s cubic-bezier(.1,.85,.3,1) infinite;
 }
-.machine.won .bulbs i{ animation:winFlash .3s cubic-bezier(.1,.85,.3,1) 7; }
-@keyframes winFlash{
-  0%,100%{ opacity:1; box-shadow:0 0 24px var(--cream), 0 0 44px var(--rose); }
-  /* Never all the way to `none`. A filament cooling still glows; cutting the
-     shadow outright is what made this read as a graphic blinking. */
-  50%    { opacity:.34; box-shadow:0 0 5px rgba(209,139,141,.5); }
+@keyframes chase{ 0%,100%{ opacity:1; } 50%{ opacity:.42; } }
+.machine.won .bulbs i{
+  box-shadow:0 0 24px var(--cream), 0 0 44px var(--rose);
+  animation:winFlash .3s cubic-bezier(.1,.85,.3,1) 7;
 }
+@keyframes winFlash{ 0%,100%{ opacity:1; } 50%{ opacity:.34; } }
 
 /* ---------------------------------------------------------------------------
    REEL DECK — heavy bezel around a genuinely deep recess
@@ -318,6 +330,9 @@ body{ background:#120207; }
 /* Symbols are lit objects on a lit drum, so they carry their own soft shadow —
    without it they float a millimetre in front of the reel. */
 .reel .cell svg{ filter:drop-shadow(0 2px 5px rgba(0,0,0,.55)); }
+/* While the drums turn, the motion blur hides that shadow completely — but
+   every change of blur redrew all 108 of them. Dropped for the spin only. */
+.machine.spinning .reel .cell svg{ filter:none; }
 
 /* Drum curvature. A reel is a cylinder, so the top and bottom of the window
    must fall away into shadow — this overlay does more for believability than
@@ -708,6 +723,9 @@ body{ background:#120207; }
     transparent 38%, rgba(233,203,203,.14) 50%, transparent 62%);
 }
 .revealing .card{ opacity:1; translate:0 0; scale:1; }
+/* Its own layer while it flies in, so the glowing title and symbol are drawn
+   once and moved, not redrawn at every step of the entrance. */
+.revealing .card, .revealing .card-sym, .revealing .card-title{ will-change:transform, opacity; }
 
 /* The children arrive in sequence instead of as one rigid block. 70ms apart —
    below that it reads as simultaneous, above it starts to feel slow. */
@@ -886,6 +904,22 @@ body.wide .wordmark, body.wide .tagline{ opacity:.6; }
   animation:lineBreath 4.6s ease-in-out infinite;
 }
 
+/* NOTHING AMBIENT RUNS BEHIND A BLUR.
+   The details form and the prize card both blur the whole machine, and the
+   form is on screen for most of the evening. Every idle animation still
+   running underneath — bulbs, marquee, payline, drums, the background blooms —
+   forced the entire blurred machine to be redrawn on every frame, for hours,
+   for movement nobody can make out through the blur. Paused, the blur is
+   drawn once and simply held. */
+body.gated .machine, body.gated .machine *,
+body.gated .machine *::before, body.gated .machine *::after,
+body.gated .living i,
+.revealing .machine, .revealing .machine *,
+.revealing .machine *::before, .revealing .machine *::after,
+.revealing .living i{
+  animation-play-state:paused !important;
+}
+
 /* CONTACT SHADOWS. The modules already sit at different depths; these are the
    shadows they should be throwing onto whatever is directly beneath them, which
    is what stops the stack reading as decals on one flat face. */
@@ -933,18 +967,19 @@ body.wide .wordmark, body.wide .tagline{ opacity:.6; }
    ring of light blooms out of the reel deck and a highlight sweeps across the
    glass, twice — the machine reacting, not just the overlay that follows it.
    =========================================================================== */
+/* The ring's glow is drawn once; the bloom is scale and opacity, both of which
+   the GPU animates without repainting. Animating the 90px shadow itself
+   redrew the whole area around the reel deck on every frame of every win. */
 .reeldeck::after{
   content:''; position:absolute; inset:-8px; border-radius:40px;
   pointer-events:none; z-index:3; opacity:0;
+  box-shadow:0 0 0 4px rgba(172,30,85,.5), 0 0 66px 12px rgba(172,30,85,.55);
 }
 .machine.won .reeldeck::after{ animation:winRing 1.1s cubic-bezier(.2,.8,.3,1) 1; }
 @keyframes winRing{
-  0%   { opacity:0; scale:.985;
-         box-shadow:0 0 0 0 rgba(172,30,85,.55), 0 0 0 0 rgba(172,30,85,.4); }
-  22%  { opacity:1; scale:1.006;
-         box-shadow:0 0 0 4px rgba(172,30,85,.5), 0 0 66px 12px rgba(172,30,85,.55); }
-  100% { opacity:0; scale:1.03;
-         box-shadow:0 0 0 16px rgba(172,30,85,0), 0 0 90px 26px rgba(172,30,85,0); }
+  0%   { opacity:0; scale:.985; }
+  22%  { opacity:1; scale:1.006; }
+  100% { opacity:0; scale:1.05; }
 }
 
 /* A hard highlight travelling across the glass, like light raking a real pane. */
@@ -1029,17 +1064,17 @@ body.wide .wordmark, body.wide .tagline{ opacity:.6; }
 <div class="grain"></div>
 <p class="sr" id="live" aria-live="polite"></p>
 
-<script src="shared/config.js?v=11"></script>
-<script src="shared/symbols.js?v=11"></script>
-<script src="shared/audio.js?v=11"></script>
-<script src="shared/engine.js?v=11"></script>
-<script src="shared/prizes.js?v=11"></script>
-<script src="shared/celebrate.js?v=11"></script>
-<script src="shared/cabinet.js?v=11"></script>
-<script src="shared/leads.js?v=11"></script>
-<script src="shared/gate.js?v=11"></script>
-<script src="shared/admin.js?v=11"></script>
-<script src="shared/skin.js?v=11"></script>
+<script src="shared/config.js?v=12"></script>
+<script src="shared/symbols.js?v=12"></script>
+<script src="shared/audio.js?v=12"></script>
+<script src="shared/engine.js?v=12"></script>
+<script src="shared/prizes.js?v=12"></script>
+<script src="shared/celebrate.js?v=12"></script>
+<script src="shared/cabinet.js?v=12"></script>
+<script src="shared/leads.js?v=12"></script>
+<script src="shared/gate.js?v=12"></script>
+<script src="shared/admin.js?v=12"></script>
+<script src="shared/skin.js?v=12"></script>
 <script>
   bootSkin({ machineW:780, machineH:1320, rows:3,
              bulbGap:68, bulbRt:18, bulbRb:18,
