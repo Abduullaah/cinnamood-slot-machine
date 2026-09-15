@@ -39,7 +39,20 @@ const CINNAMOOD_CONFIG = {
 
      MUST BE false BEFORE THE EVENT. The publish script shouts if it is not.
   ------------------------------------------------------------------------- */
-  testMode: true,
+  testMode: false,
+
+  /* ---- EVENT SIMULATION --------------------------------------------------
+     enabled: true — a full dress rehearsal on the iPad. Everything is the
+     real machine (details form, guests saved to the sheet, stock, jackpot
+     rules), except the clock: the evening does NOT start at 5pm on the day.
+     It sits READY, where every pull loses, until someone presses "Start the
+     event simulation" in the staff panel. From that moment the whole 5–7pm
+     schedule runs squeezed into `minutes`. A SIMULATION label stays on screen.
+
+     MUST BE enabled: false BEFORE THE EVENT, together with the repeat rule
+     below going back to 0.
+  ------------------------------------------------------------------------- */
+  simulation: { enabled: true, minutes: 30 },
 
   /* ---- FRESH START -------------------------------------------------------
      Change this string and every iPad that opens the new version clears
@@ -50,7 +63,7 @@ const CINNAMOOD_CONFIG = {
      NEVER change it during the event: a guest not yet sent to the sheet would
      be lost with everything else.
   ------------------------------------------------------------------------- */
-  resetStamp: 'fresh-2026-09-14',
+  resetStamp: 'fresh-2026-09-15-simulation',
 
   /* ---- THE EVENT ---------------------------------------------------------
      start / end   — the iPad's own local time. Nothing is won before start.
@@ -293,8 +306,11 @@ const CINNAMOOD_CONFIG = {
     syncKey: 'cinnamoodrolls',
 
     armedTimeoutMs: 90000,
-    settingsVersion: 2,
-    dedupeWindowDays: 0,         // LIVE: one pull per guest, no repeats ever.
+    settingsVersion: 3,
+    /* SIMULATION ONLY: -1 lets the same details play again, so one person can
+       run the whole rehearsal. Back to 0, and settingsVersion bumped, before
+       the event. */
+    dedupeWindowDays: -1,
 
     copy: {
       kicker: 'One pull per guest',
