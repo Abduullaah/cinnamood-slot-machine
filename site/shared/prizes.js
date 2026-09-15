@@ -13,27 +13,34 @@
 
    2. NOTHING IS WON BEFORE THE EVENT STARTS.
 
-   3. WINNERS ARE SCATTERED, NOT FRONT-LOADED. Nobody knows how many guests will
-      come, so fixed odds cannot work: odds set for 200 people leave prizes on
-      the counter if 80 come, and odds set for 80 run dry in the first hour if
-      200 do. Instead the regular prizes are RELEASED one at a time on a clock
-      across the event. A released prize waits for the next guests, and its
-      chance of coming up rises the longer it waits, so it goes within a few
-      pulls however busy or quiet the room is. A prize cannot be won before it
-      has been released, so a rush at the door cannot empty the machine.
+   3. WINNERS ARE SCATTERED ACROSS THE WHOLE DAY, AT RANDOM. Nobody knows how
+      many guests will come, so fixed odds cannot work: odds set for 200 people
+      leave prizes on the counter if 80 come, and run dry by lunchtime if 400
+      do. Instead each regular prize is RELEASED at its own moment, and those
+      moments are random: the day is cut into as many equal stretches as there
+      are prizes, and each prize unlocks at a random point inside its stretch.
+      That spreads them evenly over the day while no two days, and nobody
+      watching, can predict when. The random schedule is drawn once and saved
+      on the iPad, so a reload cannot reshuffle it. A released prize waits for
+      the next guests and its chance rises the longer it waits, so it goes
+      within a few pulls however busy the room is — and nothing can be won
+      before its moment, so a rush cannot empty the machine.
 
    4. COFFEES ARE SPREAD OUT. Each coffee has its own earliest moment, so the
-      five cannot all land in the first half hour.
+      five cannot all land early.
 
    5. EASIEST TO HARDEST. When a pull wins, WHICH prize it is follows the
       weights in config.js — coffee most likely, then the box of 2, 4, 6, then
-      the mug and the T-shirt equally. The harder prizes therefore tend to be
-      the ones still waiting late in the evening.
+      the mug and the T-shirt equally.
 
-   6. THE JACKPOT COMES LAST. Never before the halfway point. After that it
-      comes into play once every other prize has gone — or, if the room was
-      quiet and some are still left late on, at a fixed late moment anyway, so
-      it cannot go home unclaimed.
+   6. THE JACKPOT IN ITS WINDOW (17:00–19:00). It is decided on its own, not in
+      competition with the other prizes, and it unlocks at a random moment in
+      the first part of its window. Its chance then climbs steeply, so with
+      people playing it goes well before the window shuts. It can never be won
+      before the window opens. If nobody won it inside the window — which only
+      happens if almost nobody played — it stays in play afterwards at a high
+      chance until it goes, so it cannot go home unclaimed. Regular prizes
+      carry on before, during and after it.
 
    WHERE THE COUNT LIVES
    ---------------------
@@ -49,6 +56,7 @@
 
 const PRIZE_LEDGER_KEY = 'cinnamood.prizes.ledger';
 const PRIZE_REHEARSAL_KEY = 'cinnamood.prizes.rehearsal';
+const PRIZE_SCHEDULE_KEY = 'cinnamood.prizes.schedule';
 
 /* '2026-09-16T17:00' read as the iPad's own local time. Date.parse on a string
    without a zone is interpreted differently by different Safari versions, so it
@@ -80,6 +88,60 @@ class PrizeBank {
     if (!(end > start)) {
       this.log('error', 'Event times in config.js are not valid — no prizes can be won');
     }
+    const jf = parseLocalTime(ev.jackpotFrom), jt = parseLocalTime(ev.jackpotTo);
+    if (!(jt > jf && jf >= start && jt <= end)) {
+      this.log('error', 'The jackpot window in config.js is not valid — the jackpot cannot be won');
+    }
+  }
+
+  /* ---- the day's random schedule ----------------------------------------
+     Drawn once per run (the event, or each rehearsal) and saved, so a reload
+     finds the same moments rather than rolling new ones. If storage is lost a
+     new schedule is drawn; stock still cannot be exceeded either way. */
+  schedule(w) {
+    w = w || this.window();
+    if (this._sched && this._sched.run === w.run) return this._sched;
+    const R = this._regularUnits();
+    let s = null;
+    try { s = JSON.parse((this.storage && this.storage.getItem(PRIZE_SCHEDULE_KEY)) || 'null'); }
+    catch (e) { s = null; }
+    const valid = s && s.run === w.run && Array.isArray(s.regular) && s.regular.length === R &&
+                  s.regular.every(t => Number.isFinite(t)) && Number.isFinite(s.jackpot);
+    if (!valid) {
+      s = this._makeSchedule(w, R);
+      try { this.storage.setItem(PRIZE_SCHEDULE_KEY, JSON.stringify(s)); } catch (e) {}
+    }
+    this._sched = s;
+    return s;
+  }
+
+  _makeSchedule(w, R) {
+    const ev = this.cfg.event;
+    const span = (w.end - w.start) * ev.releaseSpan;
+    const regular = [];
+    // One random moment inside each equal stretch: even coverage, random timing.
+    for (let k = 0; k < R; k++) regular.push(w.start + ((k + this.random()) / R) * span);
+    const jw = this.jackpotWindow(w);
+    const jackpot = jw.from + this.random() * ev.jackpotReleaseBy * (jw.to - jw.from);
+    return { run: w.run, regular, jackpot };
+  }
+
+  /* The jackpot window, placed within whatever run is live. For the real event
+     that is exactly 17:00–19:00; a rehearsal gets the same share of its own
+     shorter timeline. */
+  jackpotWindow(w) {
+    w = w || this.window();
+    const ev = this.cfg.event;
+    const es = parseLocalTime(ev.start), ee = parseLocalTime(ev.end);
+    const jf = (parseLocalTime(ev.jackpotFrom) - es) / (ee - es);
+    const jt = (parseLocalTime(ev.jackpotTo) - es) / (ee - es);
+    const dur = w.end - w.start;
+    return { from: w.start + jf * dur, to: w.start + jt * dur };
+  }
+
+  _regularUnits() {
+    return this.cfg.prizes.filter(p => p.tier !== 'none' && p.tier !== 'jackpot')
+      .reduce((s, p) => s + Math.max(0, p.stock | 0), 0);
   }
 
   /* ---- which schedule is running -------------------------------------- */
@@ -226,14 +288,20 @@ class PrizeBank {
 
     const R = regular.reduce((s, p) => s + (p.stock | 0), 0);
     const givenR = regular.reduce((s, p) => s + Math.min(p.stock | 0, this.given(p.id, w)), 0);
-    const releaseAt = k => w.start + (R ? k / R : 0) * S * dur;
-    let released = 0;
-    if (dur > 0) while (released < R && releaseAt(released) <= now) released++;
 
-    const out = { w, now, f, R, givenR, released, releaseAt,
+    const out = { w, now, f, R, givenR, released: 0, releaseAt: () => NaN,
                   regular: [], jackpot: [], pR: 0, pJ: 0,
-                  jackpotSince: null };
-    if (!(dur > 0) || now < w.start) return out;
+                  jackpotFrom: NaN, jackpotTo: NaN, jackpotAt: NaN };
+    if (!(dur > 0)) return out;
+
+    const sch = this.schedule(w);
+    const releaseAt = k => (k < sch.regular.length ? sch.regular[k] : Infinity);
+    let released = 0;
+    while (released < R && releaseAt(released) <= now) released++;
+    const jw = this.jackpotWindow(w);
+    Object.assign(out, { released, releaseAt, jackpotFrom: jw.from, jackpotTo: jw.to,
+                         jackpotAt: sch.jackpot });
+    if (now < w.start) return out;
 
     if (givenR < released) {
       const unlockOf = p => w.start + (this.given(p.id, w) / (p.stock | 0)) * S * dur;
@@ -246,28 +314,20 @@ class PrizeBank {
       }
     }
 
+    /* The jackpot: only from its random release moment, never before its
+       window opens. Late in the window its chance is held high so it goes
+       while the window is still open; if it somehow did not, it stays in play
+       after the window at that same high chance (when jackpotAfterWindow). */
     jackpots.forEach(j => {
       if (this.given(j.id, w) >= (j.stock | 0)) return;
-      const notBefore = w.start + ev.jackpotNotBefore * dur;
-      const fallback = w.start + Math.max(ev.jackpotFallback, ev.jackpotNotBefore) * dur;
-      let since;
-      if (givenR >= R) {
-        /* When the last regular prize went. If the count came from the sheet
-           and this iPad has no record of the moment, assume the latest it
-           could have been — the last release. */
-        let lastT = 0;
-        for (const e of this.ledger) {
-          if (e.run === w.run && regular.some(p => p.id === e.prize)) lastT = Math.max(lastT, e.t);
-        }
-        since = Math.min(Math.max(notBefore, lastT || releaseAt(Math.max(0, R - 1))), fallback);
-      } else {
-        since = fallback;
-      }
-      out.jackpotSince = since;
-      if (now >= since && now >= notBefore) {
-        out.jackpot.push(j);
-        out.pJ = this._chance(now - since, 1, f);
-      }
+      if (!(now >= sch.jackpot && now >= jw.from)) return;
+      const late = now >= jw.to;
+      if (late && !ev.jackpotAfterWindow) return;
+      out.jackpot.push(j);
+      out.jackpotLate = late;
+      let p = this._chance(now - sch.jackpot, 1, 0);
+      if (late || now >= jw.from + ev.jackpotFloorFrom * (jw.to - jw.from)) p = Math.max(p, ev.jackpotFloor);
+      out.pJ = Math.min(1, Math.max(0, p));
     });
 
     return out;
@@ -337,11 +397,14 @@ class PrizeBank {
   _draw(w, now) {
     const none = this._none();
     const plan = this.plan(w, now);
-    const p = Math.max(plan.pR, plan.pJ);
-    if (!(p > 0) || this.random() >= p) return none;
 
-    const pool = [].concat(plan.pR > 0 ? plan.regular : [], plan.pJ > 0 ? plan.jackpot : []);
-    if (!pool.length) return none;
+    /* The jackpot is rolled on its own first. If it shared one roll with the
+       regular prizes, a backlog of coffees waiting at 18:30 could keep
+       winning the draw and push the jackpot past its window. */
+    if (plan.pJ > 0 && plan.jackpot.length && this.random() < plan.pJ) return plan.jackpot[0];
+
+    const pool = plan.regular;
+    if (!(plan.pR > 0) || !pool.length || this.random() >= plan.pR) return none;
     const weightOf = x => Math.max(0, Number(x.weight) || 0);
     const total = pool.reduce((s, x) => s + weightOf(x), 0);
     if (total <= 0) return pool[Math.floor(this.random() * pool.length)];
