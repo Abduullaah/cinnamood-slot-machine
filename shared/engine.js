@@ -381,18 +381,31 @@ class Reel {
     const offset = (this.rows - 1) / 2;
     const t = (((offset - wrapped) % this.L) + this.L) % this.L;
     const y = (t - this.L) * h;
-    this.stripEl.style.transform = `translate3d(0, ${y.toFixed(2)}px, 0)`;
 
-    // Velocity-driven motion blur. Capped hard, and the cap drops further if
-    // the device is struggling — a dropped frame is far more noticeable than a
-    // slightly crisper blur.
-    const blur = clamp(this.vel * 0.34, 0, Reel.blurCap);
-    const q = blur.toFixed(1) + 'px';
+    /* ONLY WRITE WHAT CHANGED.
+       The machine's loop runs every frame for as long as the page is open, and
+       this used to rewrite the transform (and a speed property nothing read)
+       on all three reels every frame even with the drums standing still —
+       hundreds of style changes a second through a two-hour evening, costing
+       the iPad frames and battery while it looked idle. */
+    const tf = `translate3d(0, ${y.toFixed(2)}px, 0)`;
+    if (tf !== this._lastTf) {
+      this.stripEl.style.transform = tf;
+      this._lastTf = tf;
+    }
+
+    /* Velocity-driven motion blur, in 2px steps. Every change of blur makes
+       Safari redraw the whole strip, symbols and shadows included; at 0.1px
+       resolution that was nearly every frame of every spin-up and slow-down.
+       In steps it redraws a handful of times per spin, and a 2px step in a
+       smear moving that fast cannot be seen. Capped hard, and the cap drops
+       further if the device is struggling. */
+    const blur = Math.round(clamp(this.vel * 0.34, 0, Reel.blurCap) / 2) * 2;
+    const q = blur + 'px';
     if (q !== this._lastBlur) {
       this.el.style.setProperty('--reel-blur', q);
       this._lastBlur = q;
     }
-    this.el.style.setProperty('--reel-speed', clamp(this.vel / this.maxVel, 0, 1).toFixed(2));
   }
 
   /* Called on resize — cell height changed, so re-measure and redraw. */
@@ -819,13 +832,20 @@ class Lever {
       }
     }
 
+    /* Written only when the lever actually moved. At rest these two values
+       never change, but they were set every frame regardless — and `--fore`
+       drives the arm's height, so each write meant a layout, forever. */
     const v = clamp(this.value, -0.06, 1.06);
-    this.el.style.setProperty('--lever', v.toFixed(4));
+    const lv = v.toFixed(4);
+    if (lv !== this._lastLever) {
+      this._lastLever = lv;
+      this.el.style.setProperty('--lever', lv);
 
-    // Deepest at half travel, where the arm is horizontal and would otherwise
-    // reach its full length out to the side.
-    const fore = 1 - Lever.FORESHORTEN * Math.sin(Math.PI * clamp(v, 0, 1));
-    this.el.style.setProperty('--fore', fore.toFixed(4));
+      // Deepest at half travel, where the arm is horizontal and would otherwise
+      // reach its full length out to the side.
+      const fore = 1 - Lever.FORESHORTEN * Math.sin(Math.PI * clamp(v, 0, 1));
+      this.el.style.setProperty('--fore', fore.toFixed(4));
+    }
 
     requestAnimationFrame(this._raf);
   }
