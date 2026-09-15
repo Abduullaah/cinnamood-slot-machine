@@ -24,25 +24,25 @@
    have "Update the machine" in the panel, which throws this away and reloads.
    ============================================================================ */
 
-const CACHE = 'cinnamood-v13';
+const CACHE = 'cinnamood-v14';
 
 /* Listed rather than discovered, so a typo fails loudly at install time
    instead of quietly leaving one file uncached until the day it is needed. */
 const SHELL = [
   './',
   './index.html',
-  './shared/base.css?v=13',
-  './shared/config.js?v=13',
-  './shared/symbols.js?v=13',
-  './shared/audio.js?v=13',
-  './shared/engine.js?v=13',
-  './shared/prizes.js?v=13',
-  './shared/celebrate.js?v=13',
-  './shared/cabinet.js?v=13',
-  './shared/leads.js?v=13',
-  './shared/gate.js?v=13',
-  './shared/admin.js?v=13',
-  './shared/skin.js?v=13',
+  './shared/base.css?v=14',
+  './shared/config.js?v=14',
+  './shared/symbols.js?v=14',
+  './shared/audio.js?v=14',
+  './shared/engine.js?v=14',
+  './shared/prizes.js?v=14',
+  './shared/celebrate.js?v=14',
+  './shared/cabinet.js?v=14',
+  './shared/leads.js?v=14',
+  './shared/gate.js?v=14',
+  './shared/admin.js?v=14',
+  './shared/skin.js?v=14',
   './shared/fonts/LynoStan.otf',
   './shared/fonts/LynoJean.otf',
   './shared/img/logo-white.png',
