@@ -99,18 +99,22 @@ class PrizeBank {
     return { run: 'event:' + ev.start, start, end, rehearsal: false };
   }
 
-  startRehearsal(minutes) {
+  /* `kind` is 'rehearsal' (the panel's quick run, and test mode's loop) or
+     'sim' (the full event simulation). Both work identically; the name only
+     lets the machine tell them apart, so a leftover quick rehearsal can never
+     be mistaken for a simulation somebody pressed Start on. */
+  startRehearsal(minutes, kind) {
     const ev = this.cfg.event || {};
     const now = this.now();
     const len = Math.max(2, Number(minutes) || 20) * 60000;
     if (now + len > parseLocalTime(ev.start)) {
       return { ok: false, reason: 'A rehearsal cannot run into the real event.' };
     }
-    const r = { run: 'rehearsal:' + now, start: now, end: now + len };
+    const r = { run: (kind === 'sim' ? 'sim' : 'rehearsal') + ':' + now, start: now, end: now + len };
     try { this.storage.setItem(PRIZE_REHEARSAL_KEY, JSON.stringify(r)); }
     catch (e) { return { ok: false, reason: 'This iPad would not save the rehearsal.' }; }
     // Old rehearsals are of no further use; the real event is never touched.
-    this.ledger = this.ledger.filter(e => !/^rehearsal:/.test(e.run));
+    this.ledger = this.ledger.filter(e => !/^(rehearsal|sim):/.test(e.run));
     this._rev++;
     this._persist();
     this.log('prize', 'Rehearsal started — ' + Math.round(len / 60000) + ' minutes');
@@ -381,7 +385,7 @@ class PrizeBank {
   }
 
   _persist() {
-    // Demo and rehearsal pulls are trimmed; the real event's are never dropped.
+    // Demo, rehearsal and simulation pulls are trimmed; the real event's never are.
     const keep = this.ledger.filter(e => /^event:/.test(e.run));
     const other = this.ledger.filter(e => !/^event:/.test(e.run)).slice(-400);
     this.ledger = keep.concat(other).sort((a, b) => a.t - b.t);

@@ -444,6 +444,26 @@ console.log('\nRehearsal');
   b3.startRehearsal(20);
   b3.endRehearsal();
   check('ending a rehearsal returns to the real schedule', !b3.window().rehearsal);
+
+  // The event simulation is a rehearsal with its own name.
+  const { bank: sim, clock: sc } = bankAt(day, { random: rng(21) });
+  let before = 0;
+  for (let i = 0; i < 300; i++) { sc.t = day + i * 1000; if (sim.decide('P' + i).tier !== 'none') before++; }
+  check('simulation not started: 300 pulls, nothing won', before === 0, before);
+  sc.t = day + 10 * MIN;
+  check('simulation starts on demand', sim.startRehearsal(30, 'sim').ok === true &&
+        /^sim:/.test(sim.window().run) && sim.window().end - sim.window().start === 30 * MIN);
+  const simWins = [];
+  const simFrom = sc.t;
+  for (let t = simFrom; t < simFrom + 40 * MIN; t += 15000) { sc.t = t; const p = sim.decide('S' + t); if (p.tier !== 'none') simWins.push(p.id); }
+  const sn = {};
+  simWins.forEach(id => sn[id] = (sn[id] || 0) + 1);
+  check('a 30-minute simulation gives out all 11 prizes, each within stock',
+        simWins.length === 11 && Object.keys(sn).every(id => sn[id] <= stockOf(id)), sn);
+  check('and the jackpot comes last', simWins[simWins.length - 1] === 'jackpot', simWins);
+  const again = sim.startRehearsal(30, 'sim');
+  check('starting it again gives a fresh full stock', again.ok && CFG.prizes.filter(p => p.stock)
+        .every(p => sim.left(p.id) === p.stock));
 }
 
 console.log('\nThe machine never throws on a broken config');

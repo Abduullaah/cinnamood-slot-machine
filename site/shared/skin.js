@@ -250,6 +250,16 @@ function bootSkin(opts = {}) {
     }
   }
   keepRehearsing();
+
+  /* EVENT SIMULATION: the real machine, waiting for someone to press Start in
+     the staff panel. Until then no prize can be won — so any other rehearsal
+     still stored on this iPad (test mode's loop, a quick panel rehearsal) is
+     ended here rather than quietly handing out prizes before "go". */
+  const SIM = !TEST && !!(cfg.simulation && cfg.simulation.enabled);
+  if (SIM) {
+    const w0 = bank.window();
+    if (w0.rehearsal && !/^sim:/.test(w0.run)) bank.endRehearsal();
+  }
   m.decide = () => { keepRehearsing(); return bank.decide(guest ? guest.id : null); };
 
   /* The sheet's count of prizes won is the second copy. Asked on boot and
@@ -458,13 +468,12 @@ function bootSkin(opts = {}) {
      rather than being turned away as a duplicate. */
   machine.classList.add('locked');
   const returning = restoreGuest();
-  if (cfg.testMode) {
-    /* No form, no guest: the lever is simply live. The label is deliberately
-       impossible to miss, because this must never be how the machine meets
-       real customers. */
-    machine.classList.remove('locked');
+  /* The on-screen label for anything that is not the real event. Deliberately
+     impossible to miss, because neither mode may meet real customers. */
+  function modeTag(text) {
     const tag = document.createElement('div');
-    tag.textContent = 'Test mode';
+    tag.className = 'cm-mode-tag';
+    tag.textContent = text;
     tag.setAttribute('style',
       /* Top right: centred, it sat on the marquee in landscape; top left is the
          staff panel's hidden corner. */
@@ -475,6 +484,27 @@ function bootSkin(opts = {}) {
       "font:14px/1 'Lyno Stan',Verdana,sans-serif;text-transform:uppercase;" +
       'letter-spacing:.24em;box-shadow:0 4px 18px rgba(0,0,0,.5)');
     document.body.appendChild(tag);
+    return tag;
+  }
+
+  if (SIM) {
+    const tag = modeTag('Simulation');
+    const hm = t => { const d = new Date(t); return String(d.getHours()).padStart(2, '0') + ':' +
+                                                   String(d.getMinutes()).padStart(2, '0'); };
+    const syncTag = () => {
+      const w = bank.window();
+      if (!w.rehearsal) tag.textContent = 'Simulation · not started';
+      else if (Date.now() < w.end) tag.textContent = 'Simulation · until ' + hm(w.end);
+      else tag.textContent = 'Simulation · finished';
+    };
+    syncTag();
+    setInterval(syncTag, 5000);
+  }
+
+  if (cfg.testMode) {
+    /* No form, no guest: the lever is simply live. */
+    machine.classList.remove('locked');
+    modeTag('Test mode');
   } else if (returning) {
     setGuest(returning);
     say(`Welcome back ${returning.first}. Pull the lever.`);

@@ -19,6 +19,17 @@ if grep -q "testMode: true" site/shared/config.js; then
   echo
 fi
 
+if grep -q "simulation: { enabled: true" site/shared/config.js || \
+   grep -q "dedupeWindowDays: -1" site/shared/config.js; then
+  echo
+  echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+  echo "!!  SIMULATION IS SWITCHED ON, or repeats are allowed.              !!"
+  echo "!!  Before the event: simulation enabled false, dedupeWindowDays 0, !!"
+  echo "!!  bump leads.settingsVersion and resetStamp.                      !!"
+  echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+  echo
+fi
+
 # One build number across every asset URL, so a half-updated cache cannot
 # leave the machine running two builds at once.
 python3 tools/bump.py

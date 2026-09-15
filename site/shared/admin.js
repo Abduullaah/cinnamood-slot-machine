@@ -33,6 +33,8 @@ class AdminPanel {
     this.cfg = cfg;
     this.leads = leads || null;
     this.bank = bank || null;
+    this._sim = !cfg.testMode && !!(cfg.simulation && cfg.simulation.enabled);
+    this._simMinutes = (cfg.simulation && cfg.simulation.minutes) || 30;
     this.stats = { spins: 0, byPrize: {} };
 
     /* The prize state moves with the clock as well as with pulls, so it is
@@ -162,6 +164,9 @@ class AdminPanel {
     let text;
     if (!(dur > 0)) {
       text = 'The event times in config.js are not valid. Nothing can be won.';
+    } else if (this._sim && !w.rehearsal) {
+      text = 'Simulation ready. Every pull loses until you press "Start the event ' +
+             'simulation" below. Guests are saved to the sheet as usual.';
     } else if (now < w.start) {
       text = 'Nothing can be won until ' + hm(w.start) + ' ' + day(w.start) + '. ' +
              'Pulls before then always lose, and forced results are not counted.';
@@ -188,7 +193,14 @@ class AdminPanel {
     }
 
     const reh = root.querySelector('#cm-reh-on');
-    if (reh) reh.hidden = !w.rehearsal;
+    if (reh) {
+      reh.hidden = !w.rehearsal;
+      if (/^sim:/.test(w.run)) {
+        reh.textContent = 'Simulation running, ' + hm(w.start) + '–' + hm(w.end) +
+          ': the real 5–7pm evening squeezed into ' + Math.round(dur / 60000) +
+          ' minutes, with real stock and the jackpot last. Guests go to the sheet.';
+      }
+    }
     const start = root.querySelector('#cm-reh-start');
     const stop = root.querySelector('#cm-reh-end');
     if (start) start.hidden = w.rehearsal;
@@ -477,9 +489,15 @@ class AdminPanel {
 
     const rehStart = root.querySelector('#cm-reh-start');
     const rehEnd = root.querySelector('#cm-reh-end');
+    if (this._sim) {
+      rehStart.textContent = 'Start the event simulation (' + this._simMinutes + ' minutes)';
+      rehStart.classList.add('cm-solid');
+      rehEnd.textContent = 'End simulation';
+    }
     rehStart.onclick = () => {
       if (!this.bank) return;
-      const r = this.bank.startRehearsal(20);
+      const r = this._sim ? this.bank.startRehearsal(this._simMinutes, 'sim')
+                          : this.bank.startRehearsal(20);
       if (!r.ok) {
         const st = root.querySelector('#cm-prize-state');
         this._syncPrizes();
