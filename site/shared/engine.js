@@ -851,5 +851,7 @@ class Lever {
   }
 }
 /* How much of the arm's length is eaten at the midpoint of the swing.
-   0 = flat 2D wiper, 1 = the arm vanishes. 0.42 reads as a natural arc. */
-Lever.FORESHORTEN = 0.42;
+   0 = flat 2D wiper, 1 = the arm vanishes. 0.55 still reads as a natural arc,
+   and keeps the ball on screen at mid-pull now that the CABINET, not the
+   cabinet-plus-lever box, sits dead centre (0.42 swung it past the edge). */
+Lever.FORESHORTEN = 0.55;

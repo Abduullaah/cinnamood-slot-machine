@@ -64,12 +64,26 @@ function bootSkin(opts = {}) {
      The cabinet is authored once at a fixed size and scaled, so proportions can
      never drift and portrait vs landscape is a single number.
 
-     The width budget includes SWING: at the midpoint of a pull the ball sweeps
-     well outside the cabinet, and if that isn't reserved it gets clipped by the
-     screen edge exactly when the customer is looking at it. OVERHANG_Y does the
-     same for anything hanging above the cabinet, like Patisserie's awning. */
-  const SWING = opts.swingPad ?? 140;
+     DEAD CENTRE MEANS THE CABINET. The authored box is the cabinet PLUS the
+     lever hanging off its right side, and centring that box put the cabinet
+     itself visibly left of centre on every screen. So the cabinet's own middle
+     (x = CAB_CX in authored pixels) is what sits on the centre of the screen,
+     and the machine is scaled about that same point.
+
+     The width budget is then symmetric: REACH is how far the lever's ball
+     travels from the cabinet's middle at its widest (mid-pull), reserved on
+     BOTH sides so centring can never push the ball off the screen edge exactly
+     when a customer is looking at it. OVERHANG_Y covers anything hanging above
+     the cabinet, like Patisserie's awning. */
+  const CAB_CX = opts.cabinetCenterX ?? 343;
+  const REACH = opts.leverReach ?? 520;
   const OVERHANG_Y = opts.overhangY ?? 0;
+  /* Vertical centre of what you actually SEE: the marquee rises 16px above the
+     box and the plinth ends 8px short of its bottom, so centring the box sat
+     the machine visibly high — more space below it than above. */
+  const VIS_TOP = opts.visibleTop ?? -16;
+  const VIS_BOTTOM = opts.visibleBottom ?? 1312;
+  const CAB_CY = (VIS_TOP + VIS_BOTTOM) / 2;
 
   /* layout() runs before the lever exists, so it can't close over the `const`
      below without tripping over the temporal dead zone. */
@@ -81,18 +95,18 @@ function bootSkin(opts = {}) {
     const wide = vw / vh > 1.05;
     document.body.classList.toggle('wide', wide);
 
-    const padX = wide ? 0.62 : 0.95;
+    const padX = wide ? 0.62 : 0.97;
     const padY = wide ? 0.93 : 0.90;
-    const s = Math.min((vw * padX) / (W + SWING),
-                       (vh * padY) / (H + OVERHANG_Y));
+    const s = Math.min((vw * padX) / (2 * REACH),
+                       (vh * padY) / (VIS_BOTTOM - VIS_TOP + OVERHANG_Y));
 
-    // Centre on what's VISIBLE, not on the box: with an overhang above, the
-    // box midpoint sits below the composition's midpoint and the machine hangs
-    // low on the screen.
+    // Centre on what's VISIBLE, not on the box: the cabinet's middle goes on
+    // the screen's middle both ways, and an overhang above moves that middle up.
+    const cy = CAB_CY - OVERHANG_Y / 2;
     fit.style.cssText =
       `position:absolute;left:50%;top:50%;width:${W}px;height:${H}px;` +
-      `margin-left:${-W / 2}px;margin-top:${-H / 2 + OVERHANG_Y / 2}px;` +
-      `transform-origin:center center;transform:scale(${s});`;
+      `margin-left:${-CAB_CX}px;margin-top:${-cy}px;` +
+      `transform-origin:${CAB_CX}px ${cy}px;transform:scale(${s});`;
 
     /* The lever measures a pull in screen pixels but is authored in cabinet
        pixels, so it needs the same number the cabinet was scaled by. */
@@ -236,26 +250,31 @@ function bootSkin(opts = {}) {
      result they were already owed instead of drawing, and counting, again. */
   const bank = new PrizeBank(cfg, { log: (k, msg) => leads._note(k, msg) });
 
-  /* In test mode the event is days away, so every pull would lose. Instead a
-     20-minute rehearsal of the evening runs on a loop: when one has finished,
-     the next pull starts a fresh one with full stock. A rehearsal can never
-     overlap the real event, so this cannot touch the real prizes. */
-  const TEST = !!cfg.testMode;
-  function keepRehearsing() {
-    if (!TEST) return;
-    const w = bank.window();
-    if (!w.rehearsal || !/^test:/.test(w.run) || Date.now() > w.end + 2 * 60000) {
-      bank.endRehearsal();
-      bank.startRehearsal(20, 'test');
-    }
-  }
-  keepRehearsing();
-
   /* EVENT SIMULATION: the real machine, waiting for someone to press Start in
      the staff panel. Until then no prize can be won — so any other rehearsal
      still stored on this iPad (test mode's loop, a quick panel rehearsal) is
-     ended here rather than quietly handing out prizes before "go". */
+     ended here rather than quietly handing out prizes before "go".
+
+     PRACTICE is a simulation with autoStart: nobody has to press Start. */
+  const TEST = !!cfg.testMode;
   const SIM = !TEST && !!(cfg.simulation && cfg.simulation.enabled);
+  const SIM_LOOP = SIM && !!cfg.simulation.autoStart;
+
+  /* In test mode and in practice the event is still to come, so every pull
+     would lose. Instead a rehearsal of the evening runs on a loop: when one has
+     finished, the next pull starts a fresh one with full stock. A rehearsal can
+     never overlap the real event, so this cannot touch the real prizes. */
+  function keepRehearsing() {
+    const kind = TEST ? 'test' : (SIM_LOOP ? 'sim' : null);
+    if (!kind) return;
+    const minutes = TEST ? 20 : (Number(cfg.simulation.minutes) || 20);
+    const w = bank.window();
+    if (!w.rehearsal || w.run.indexOf(kind + ':') !== 0 || Date.now() > w.end + 2 * 60000) {
+      bank.endRehearsal();
+      bank.startRehearsal(minutes, kind);
+    }
+  }
+
   if (!TEST) {
     const w0 = bank.window();
     /* Simulation: only a simulation someone started counts. The real machine:
@@ -266,6 +285,7 @@ function bootSkin(opts = {}) {
       bank.endRehearsal();
     }
   }
+  keepRehearsing();
   m.decide = () => { keepRehearsing(); return bank.decide(guest ? guest.id : null); };
 
   /* The sheet's count of prizes won is the second copy. Asked on boot and
