@@ -56,7 +56,7 @@ const CINNAMOOD_CONFIG = {
      themselves and a fresh one begins whenever the last has finished, so the
      details form and the spinning can be tried at any moment with prizes
      actually coming out. */
-  simulation: { enabled: true, minutes: 20, autoStart: true },
+  simulation: { enabled: false, minutes: 20, autoStart: false },
 
   /* ---- FRESH START -------------------------------------------------------
      Change this string and every iPad that opens the new version clears
@@ -67,7 +67,7 @@ const CINNAMOOD_CONFIG = {
      NEVER change it during the event: a guest not yet sent to the sheet would
      be lost with everything else.
   ------------------------------------------------------------------------- */
-  resetStamp: 'fresh-2026-09-15-practice',
+  resetStamp: 'fresh-2026-09-16-event',
 
   /* ---- THE EVENT ---------------------------------------------------------
      start / end   — the iPad's own local time. Nothing is won before start.
@@ -310,10 +310,8 @@ const CINNAMOOD_CONFIG = {
     syncKey: 'cinnamoodrolls',
 
     armedTimeoutMs: 90000,
-    settingsVersion: 5,
-    /* PRACTICE ONLY: -1 lets the same details play again. Back to 0, and
-       settingsVersion bumped, when the machine is locked for the event. */
-    dedupeWindowDays: -1,
+    settingsVersion: 6,
+    dedupeWindowDays: 0,         // LIVE: one pull per guest, no repeats ever.
 
     copy: {
       kicker: 'One pull per guest',
