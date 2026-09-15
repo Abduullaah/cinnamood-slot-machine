@@ -182,13 +182,15 @@ class AdminPanel {
           ? 'Next one unlocks at ' + hm(plan.releaseAt(plan.released)) + '. '
           : 'Every prize is unlocked. ');
       if (jack) {
-        const notBefore = w.start + ev.jackpotNotBefore * dur;
-        const fallback = w.start + ev.jackpotFallback * dur;
+        const jf = hm(plan.jackpotFrom), jt = hm(plan.jackpotTo);
         if (b.left(jack.id, w) <= 0) text += 'The jackpot has been won.';
+        else if (now >= plan.jackpotTo && plan.jackpot.length) {
+          text += 'The jackpot was not won between ' + jf + ' and ' + jt +
+                  ', so it is in play now until it goes.';
+        }
+        else if (now >= plan.jackpotTo) text += 'The jackpot window (' + jf + '–' + jt + ') has closed.';
         else if (plan.jackpot.length) text += 'The jackpot is in play now.';
-        else if (plan.givenR >= plan.R) text += 'The jackpot comes into play at ' + hm(plan.jackpotSince) + '.';
-        else text += 'The jackpot waits until the rest have gone, never before ' +
-                     hm(notBefore) + ', and is in play from ' + hm(fallback) + ' at the latest.';
+        else text += 'The jackpot is won between ' + jf + ' and ' + jt + '.';
       }
     }
     if (!b.storageOk) text += ' THIS IPAD IS NOT SAVING THE PRIZE COUNT.';

@@ -70,43 +70,57 @@ const CINNAMOOD_CONFIG = {
   resetStamp: 'fresh-2026-09-16-event',
 
   /* ---- THE EVENT ---------------------------------------------------------
+     Agreed 2026-09-15 (a change from the earlier 5–7pm evening): the machine
+     runs from 10am to midnight, regular prizes can be won all day, scattered
+     at random, and the jackpot only between 5pm and 7pm.
+
      start / end   — the iPad's own local time. Nothing is won before start.
                      CHANGE THESE if the event times change.
 
-     releaseSpan   — the regular prizes (everything but the jackpot) are let
-                     out one at a time, evenly, across this share of the event.
-                     0.85 of 5–7pm puts one out roughly every 10 minutes from
-                     5:00 to about 6:32, so there are still winners in the last
-                     half hour, leaving the end for the jackpot and for
-                     anything a quiet room left behind. (0.75 was tried first:
-                     at 150 guests everything was gone by 6:31 and the last
-                     half hour had no winners at all.)
+     releaseSpan   — the regular prizes (everything but the jackpot) unlock
+                     across this share of the day. It is cut into one equal
+                     stretch per prize and each prize unlocks at a RANDOM
+                     moment inside its stretch: evenly spread, unpredictable.
+                     0.88 of 10:00–24:00 ends the last stretch about 22:20,
+                     leaving time for anything still waiting. (0.93 was tried
+                     first: the last prize could unlock near 23:00, and when
+                     the crowd is mostly lunch and evening nobody was left to
+                     win it — 1 day in 5 at 100 guests.)
 
-     jackpotNotBefore — share of the event before which the jackpot can NEVER
-                     come up, whatever else has happened. 0.5 = 6:00pm.
-     jackpotFallback  — after the halfway point the jackpot waits for every
-                     other prize to go. If some are still left at this point
-                     (0.9 = 6:48pm), it comes into play anyway, so it cannot
-                     go home unclaimed.
+     jackpotFrom / jackpotTo — the only time the jackpot can be won.
+     jackpotReleaseBy — the jackpot unlocks at a random moment within this
+                     share of its window (0.5 = between 17:00 and 18:00).
+     jackpotFloorFrom / jackpotFloor — from this share of its window (0.75 =
+                     18:30) the jackpot's chance on each pull is held at least
+                     at jackpotFloor, so it goes before 19:00 if anyone plays.
+     jackpotAfterWindow — true: if nobody won it by 19:00 (only possible if
+                     almost nobody played 5–7), it stays in play afterwards at
+                     jackpotFloor until it goes. Agreed with the owner: "if no
+                     one plays between 5–7 then give it whenever after that".
 
-     finalStretch  — from here (6:48pm) anything still on the counter gets at
-                     least an even chance on every pull, so the prizes go out.
+     finalStretch  — from here (about 22:20) anything still waiting gets at
+                     least `chance.finalFloor` (90%) on every pull: late at
+                     night there may only be a guest or two left to win it.
 
      chance        — how likely a released prize is to come up on a pull.
                      `base` straight after release, plus `perMinute` for every
                      minute it has been waiting, plus `perBacklog` for each
                      further released prize still waiting, capped at `max`.
-                     Tuned by simulating 60 to 300 guests — see
+                     Tuned by simulating whole days of guests — see
                      tools/tests/prizes.test.js before changing any of these.
   ------------------------------------------------------------------------- */
   event: {
-    start: '2026-09-16T17:00',
-    end:   '2026-09-16T19:00',
-    releaseSpan: 0.85,
-    jackpotNotBefore: 0.5,
-    jackpotFallback: 0.9,
-    finalStretch: 0.9,
-    chance: { base: 0.2, perMinute: 0.06, perBacklog: 0.15, finalFloor: 0.5, max: 0.9 }
+    start: '2026-09-16T10:00',
+    end:   '2026-09-17T00:00',
+    releaseSpan: 0.88,
+    jackpotFrom: '2026-09-16T17:00',
+    jackpotTo:   '2026-09-16T19:00',
+    jackpotReleaseBy: 0.5,
+    jackpotFloorFrom: 0.75,
+    jackpotFloor: 0.9,
+    jackpotAfterWindow: true,
+    finalStretch: 0.88,
+    chance: { base: 0.2, perMinute: 0.06, perBacklog: 0.15, finalFloor: 0.9, max: 0.9 }
   },
 
   /* ---- PRIZES ------------------------------------------------------------
