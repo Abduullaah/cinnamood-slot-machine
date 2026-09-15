@@ -39,7 +39,7 @@ const CINNAMOOD_CONFIG = {
 
      MUST BE false BEFORE THE EVENT. The publish script shouts if it is not.
   ------------------------------------------------------------------------- */
-  testMode: true,
+  testMode: false,
 
   /* ---- EVENT SIMULATION --------------------------------------------------
      enabled: true — a full dress rehearsal on the iPad. Everything is the
@@ -52,7 +52,11 @@ const CINNAMOOD_CONFIG = {
      MUST BE enabled: false BEFORE THE EVENT, together with the repeat rule
      below going back to 0.
   ------------------------------------------------------------------------- */
-  simulation: { enabled: false, minutes: 30 },
+  /* autoStart: true is PRACTICE — the same simulation, but rounds start by
+     themselves and a fresh one begins whenever the last has finished, so the
+     details form and the spinning can be tried at any moment with prizes
+     actually coming out. */
+  simulation: { enabled: true, minutes: 20, autoStart: true },
 
   /* ---- FRESH START -------------------------------------------------------
      Change this string and every iPad that opens the new version clears
@@ -63,7 +67,7 @@ const CINNAMOOD_CONFIG = {
      NEVER change it during the event: a guest not yet sent to the sheet would
      be lost with everything else.
   ------------------------------------------------------------------------- */
-  resetStamp: 'fresh-2026-09-15-event-ready',
+  resetStamp: 'fresh-2026-09-15-practice',
 
   /* ---- THE EVENT ---------------------------------------------------------
      start / end   — the iPad's own local time. Nothing is won before start.
@@ -306,8 +310,10 @@ const CINNAMOOD_CONFIG = {
     syncKey: 'cinnamoodrolls',
 
     armedTimeoutMs: 90000,
-    settingsVersion: 4,
-    dedupeWindowDays: 0,         // LIVE: one pull per guest, no repeats ever.
+    settingsVersion: 5,
+    /* PRACTICE ONLY: -1 lets the same details play again. Back to 0, and
+       settingsVersion bumped, when the machine is locked for the event. */
+    dedupeWindowDays: -1,
 
     copy: {
       kicker: 'One pull per guest',
