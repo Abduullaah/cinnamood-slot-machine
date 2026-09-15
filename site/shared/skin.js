@@ -244,9 +244,9 @@ function bootSkin(opts = {}) {
   function keepRehearsing() {
     if (!TEST) return;
     const w = bank.window();
-    if (!w.rehearsal || Date.now() > w.end + 2 * 60000) {
+    if (!w.rehearsal || !/^test:/.test(w.run) || Date.now() > w.end + 2 * 60000) {
       bank.endRehearsal();
-      bank.startRehearsal(20);
+      bank.startRehearsal(20, 'test');
     }
   }
   keepRehearsing();
@@ -256,9 +256,15 @@ function bootSkin(opts = {}) {
      still stored on this iPad (test mode's loop, a quick panel rehearsal) is
      ended here rather than quietly handing out prizes before "go". */
   const SIM = !TEST && !!(cfg.simulation && cfg.simulation.enabled);
-  if (SIM) {
+  if (!TEST) {
     const w0 = bank.window();
-    if (w0.rehearsal && !/^sim:/.test(w0.run)) bank.endRehearsal();
+    /* Simulation: only a simulation someone started counts. The real machine:
+       a round left over from test mode or a simulation is discarded — the day
+       it matters, a leftover would hand out prizes before 5pm. A staff
+       member's own quick panel rehearsal is left alone. */
+    if (w0.rehearsal && (SIM ? !/^sim:/.test(w0.run) : /^(test|sim):/.test(w0.run))) {
+      bank.endRehearsal();
+    }
   }
   m.decide = () => { keepRehearsing(); return bank.decide(guest ? guest.id : null); };
 

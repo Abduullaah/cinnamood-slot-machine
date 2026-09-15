@@ -149,7 +149,8 @@ class AdminPanel {
           { weekday: 'short', day: 'numeric', month: 'short' });
 
     const set = (sel, v) => { const el = root.querySelector(sel); if (el) el.textContent = v; };
-    set('#cm-event-when', (w.rehearsal ? 'Rehearsal ' : 'Event ' + day(w.start) + ' ') +
+    set('#cm-event-when', (w.rehearsal ? (/^sim:/.test(w.run) ? 'Simulation ' : 'Rehearsal ')
+                                       : 'Event ' + day(w.start) + ' ') +
                           hm(w.start) + '–' + hm(w.end));
 
     root.querySelectorAll('[data-left]').forEach(el => {
@@ -171,7 +172,12 @@ class AdminPanel {
       text = 'Nothing can be won until ' + hm(w.start) + ' ' + day(w.start) + '. ' +
              'Pulls before then always lose, and forced results are not counted.';
     } else {
+      /* Say what is on offer RIGHT NOW, not only when the next one unlocks.
+         "0 of 10 given, next one unlocks at 12:39" read as if nothing could be
+         won yet, when the first prize had been waiting since the start. */
+      const waiting = plan.released - plan.givenR;
       text = plan.givenR + ' of ' + plan.R + ' prizes given. ' +
+        (waiting > 0 ? waiting + (waiting === 1 ? ' is' : ' are') + ' unlocked and can be won now. ' : '') +
         (plan.released < plan.R
           ? 'Next one unlocks at ' + hm(plan.releaseAt(plan.released)) + '. '
           : 'Every prize is unlocked. ');
