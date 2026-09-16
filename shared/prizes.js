@@ -319,6 +319,7 @@ class PrizeBank {
        while the window is still open; if it somehow did not, it stays in play
        after the window at that same high chance (when jackpotAfterWindow). */
     jackpots.forEach(j => {
+      if (ev.jackpotHold) return;                 // on hold: only staff can force it
       if (this.given(j.id, w) >= (j.stock | 0)) return;
       if (!(now >= sch.jackpot && now >= jw.from)) return;
       const late = now >= jw.to;
