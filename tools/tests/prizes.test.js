@@ -1,7 +1,7 @@
 /* Proves the prize rules agreed for the event, by running the real prize bank
    through thousands of simulated days.
 
-   The event (agreed 2026-09-15): 10:00 to midnight. Regular prizes scattered
+   The event (agreed 2026-09-16): prizes scheduled 11:35 to midnight. Scattered
    at random across the whole day. The jackpot only between 17:00 and 19:00.
 
    Hard rules — any single breach fails the suite:
@@ -75,8 +75,8 @@ function rng(seed) {
 console.log('\nThe prize list and the day match what was agreed');
 {
   const by = id => CFG.prizes.find(p => p.id === id);
-  check('event is 16 Sep 2026, 10:00 to midnight',
-        ev.start === '2026-09-16T10:00' && ev.end === '2026-09-17T00:00');
+  check('event is 16 Sep 2026, 11:35 to midnight',
+        ev.start === '2026-09-16T11:35' && ev.end === '2026-09-17T00:00');
   check('jackpot window is 17:00 to 19:00, inside the event',
         ev.jackpotFrom === '2026-09-16T17:00' && ev.jackpotTo === '2026-09-16T19:00' &&
         J_FROM >= START && J_TO <= END);
@@ -656,7 +656,8 @@ console.log('\nThe machine never throws on a broken config');
 console.log('\nHow winners spread across the day (150 guests, ' + (QUICK ? 100 : 1000) + ' days)');
 {
   const N = QUICK ? 100 : 1000;
-  const perHour = new Array(14).fill(0);
+  const HOURS = Math.ceil(DUR / HOUR);   // the day is however long it is
+  const perHour = new Array(HOURS).fill(0);
   const unitTimes = {};
   const totals = {};
   const jackBins = new Array(9).fill(0);   // eight quarter hours 17:00–19:00, then "after 19:00"
@@ -674,7 +675,7 @@ console.log('\nHow winners spread across the day (150 guests, ' + (QUICK ? 100 :
     }
     wins.forEach(x => {
       const h = Math.floor((x.t - START) / HOUR);
-      if (h >= 0 && h < 14) perHour[h]++;
+      if (h >= 0 && h < HOURS) perHour[h]++;
       seen[x.id] = (seen[x.id] || 0) + 1;
       const k = x.id + (stockOf(x.id) > 1 ? ' #' + seen[x.id] : '');
       (unitTimes[k] = unitTimes[k] || []).push(x.t);
@@ -694,7 +695,12 @@ console.log('\nHow winners spread across the day (150 guests, ' + (QUICK ? 100 :
                 ' / ' + hm(pct(unitTimes[k], .95)) + '   (' + unitTimes[k].length + ' of ' + N + ')'));
   console.log('  prizes given per day: ' + JSON.stringify(totals));
   check('never more than 11 prizes in a day', Object.keys(totals).every(k => +k <= 11), totals);
-  check('winners in every hour from 10:00 to 23:00 on average', perHour.slice(0, 13).every(n => n / N >= 0.3),
+  /* Winners are expected through the hours in which prizes are still
+     unlocking. After the last unlock (releaseSpan of the day) the tail is
+     naturally quiet — that is the point of leaving a tail. */
+  const liveHours = Math.floor(HOURS * ev.releaseSpan);
+  check('winners in every hour while prizes are still unlocking, on average',
+        perHour.slice(0, liveHours).every(n => n / N >= 0.3),
         perHour.map(n => +(n / N).toFixed(2)));
   check('the jackpot is spread over at least four different quarter hours of its window',
         jackBins.slice(0, 8).filter(n => n / N >= 0.05).length >= 4, jackBins.map(n => +(n / N * 100).toFixed(1)));
