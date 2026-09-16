@@ -70,7 +70,7 @@ const CINNAMOOD_CONFIG = {
   resetStamp: 'fresh-2026-09-16-event',
 
   /* ---- THE EVENT ---------------------------------------------------------
-     Agreed 2026-09-16, on the day: the prize schedule starts at 11:35 (the
+     Agreed 2026-09-16, on the day: the prize schedule starts at 12:15 (the
      machine opened earlier, but the owner wanted the prizes spread from the
      moment it went live, with nothing already waiting) and runs to midnight.
      Regular prizes scattered at random; the jackpot only between 5pm and 7pm.
@@ -82,7 +82,7 @@ const CINNAMOOD_CONFIG = {
                      across this share of the day. It is cut into one equal
                      stretch per prize and each prize unlocks at a RANDOM
                      moment inside its stretch: evenly spread, unpredictable.
-                     0.88 of 11:35–24:00 ends the last stretch about 22:35,
+                     0.88 of 12:05–24:00 ends the last stretch about 22:50,
                      leaving time for anything still waiting. (0.93 was tried
                      first: the last prize could unlock near 23:00, and when
                      the crowd is mostly lunch and evening nobody was left to
@@ -107,11 +107,20 @@ const CINNAMOOD_CONFIG = {
                      `base` straight after release, plus `perMinute` for every
                      minute it has been waiting, plus `perBacklog` for each
                      further released prize still waiting, capped at `max`.
+                     RETUNED ON THE DAY: winning must feel RARE. The first
+                     version climbed to 90%, so a prize that had been waiting
+                     an hour went to the very next guest — exactly what
+                     happened at 11:38 with the T-shirt. 6%/35% was then tried
+                     and was too mean: prizes stopped going out at all (61% of
+                     days left some unclaimed). This is the middle: 8% on the
+                     first pull after a prize unlocks, climbing slowly, never
+                     past 50%, so a prize takes several guests to find but
+                     still goes.
                      Tuned by simulating whole days of guests — see
                      tools/tests/prizes.test.js before changing any of these.
   ------------------------------------------------------------------------- */
   event: {
-    start: '2026-09-16T11:35',
+    start: '2026-09-16T12:15',
     end:   '2026-09-17T00:00',
     releaseSpan: 0.88,
     jackpotFrom: '2026-09-16T17:00',
@@ -121,7 +130,7 @@ const CINNAMOOD_CONFIG = {
     jackpotFloor: 0.9,
     jackpotAfterWindow: true,
     finalStretch: 0.88,
-    chance: { base: 0.2, perMinute: 0.06, perBacklog: 0.15, finalFloor: 0.9, max: 0.9 }
+    chance: { base: 0.08, perMinute: 0.02, perBacklog: 0.08, finalFloor: 0.8, max: 0.5 }
   },
 
   /* ---- PRIZES ------------------------------------------------------------
@@ -199,7 +208,10 @@ const CINNAMOOD_CONFIG = {
       symbol: 'tee',
       label: 'Cinnamood T-Shirt',
       sub: 'Exclusive merch',
-      stock: 1,
+      /* WON AND HANDED OVER at about 11:38 on the day, under the earlier
+         schedule. Stock 0 takes it out of the machine for good: it cannot be
+         won again and it no longer appears on the paytable. */
+      stock: 0,
       weight: 2
     },
     {
