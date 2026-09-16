@@ -46,7 +46,10 @@ vm.runInContext(['config.js', 'symbols.js', 'prizes.js']
   'this.parseLocalTime=parseLocalTime;', S);
 
 const CFG = S.CFG;
-const cfgCopy = () => JSON.parse(JSON.stringify(CFG));
+/* The simulations exercise the jackpot's own rules, so they run with the hold
+   off; the hold itself is tested on its own further down. */
+const cfgCopy = (keepHold) => { const c = JSON.parse(JSON.stringify(CFG));
+  if (!keepHold) c.event.jackpotHold = false; return c; };
 const P = S.parseLocalTime;
 const ev = CFG.event;
 const START = P(ev.start), END = P(ev.end), DUR = END - START;
@@ -81,6 +84,7 @@ console.log('\nThe prize list and the day match what was agreed');
         ev.jackpotFrom === '2026-09-16T17:00' && ev.jackpotTo === '2026-09-16T19:00' &&
         J_FROM >= START && J_TO <= END);
   check('an unwon jackpot stays in play after 19:00', ev.jackpotAfterWindow === true);
+  check('the jackpot is ON HOLD in the live settings', ev.jackpotHold === true);
   check('five coffees', by('coffee') && by('coffee').stock === 5);
   ['box2', 'box4', 'box6', 'mug', 'jackpot'].forEach(id =>
     check('exactly one ' + id, by(id) && by(id).stock === 1));
@@ -456,6 +460,27 @@ console.log('\nThe jackpot window, pushed as hard as possible');
   }
   check('a guest every 4 minutes from 18:30 only: the jackpot still goes before 19:00 in 97% of days',
         goes >= 194, goes + ' of 200');
+}
+
+console.log('\nJackpot on hold');
+{
+  const clock = { t: START };
+  const bank = new S.PrizeBank(cfgCopy(true), { now: () => clock.t, random: () => 0,
+    storage: mkStorage(), log: () => {} });
+  let j = 0, total = 0;
+  for (let t = START; t < END + HOUR; t += 20000) {
+    clock.t = t;
+    const p = bank.decide('H' + t);
+    if (p.id === 'jackpot') j++;
+    if (p.tier !== 'none') total++;
+  }
+  check('on hold: the luckiest guests pulling every 20 seconds all day never win the jackpot', j === 0, j);
+  check('on hold: the other prizes still go out', total >= 5, total);
+  bank.forceNext('jackpot');
+  clock.t = at('18:00');
+  check('on hold: staff forcing it gives the jackpot', bank.decide('FORCED').id === 'jackpot');
+  bank.forceNext('jackpot');
+  check('and it can only be forced once', bank.decide('FORCED2').id !== 'jackpot' && bank.left('jackpot') === 0);
 }
 
 console.log('\nA reload in the middle of a spin');

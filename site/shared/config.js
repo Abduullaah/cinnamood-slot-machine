@@ -99,6 +99,12 @@ const CINNAMOOD_CONFIG = {
                      jackpotFloor until it goes. Agreed with the owner: "if no
                      one plays between 5–7 then give it whenever after that".
 
+     jackpotHold   — true: the jackpot is ON HOLD and can never be won by
+                     chance. Set on the day at the owner's request: "don't give
+                     it out until I specifically tell you". It is given only by
+                     staff choosing it under Force next result in the panel,
+                     which still counts it once and respects stock.
+
      finalStretch  — from here (about 22:20) anything still waiting gets at
                      least `chance.finalFloor` (90%) on every pull: late at
                      night there may only be a guest or two left to win it.
@@ -129,6 +135,7 @@ const CINNAMOOD_CONFIG = {
     jackpotFloorFrom: 0.75,
     jackpotFloor: 0.9,
     jackpotAfterWindow: true,
+    jackpotHold: true,
     finalStretch: 0.88,
     chance: { base: 0.08, perMinute: 0.02, perBacklog: 0.08, finalFloor: 0.8, max: 0.5 }
   },

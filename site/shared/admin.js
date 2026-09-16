@@ -183,7 +183,10 @@ class AdminPanel {
           : 'Every prize is unlocked. ');
       if (jack) {
         const jf = hm(plan.jackpotFrom), jt = hm(plan.jackpotTo);
-        if (b.left(jack.id, w) <= 0) text += 'The jackpot has been won.';
+        if (ev.jackpotHold && b.left(jack.id, w) > 0) {
+          text += 'The jackpot is ON HOLD: it will not be won by chance. To give it, choose it under Force next result.';
+        }
+        else if (b.left(jack.id, w) <= 0) text += 'The jackpot has been won.';
         else if (now >= plan.jackpotTo && plan.jackpot.length) {
           text += 'The jackpot was not won between ' + jf + ' and ' + jt +
                   ', so it is in play now until it goes.';
