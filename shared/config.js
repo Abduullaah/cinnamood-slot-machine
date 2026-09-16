@@ -70,9 +70,10 @@ const CINNAMOOD_CONFIG = {
   resetStamp: 'fresh-2026-09-16-event',
 
   /* ---- THE EVENT ---------------------------------------------------------
-     Agreed 2026-09-15 (a change from the earlier 5–7pm evening): the machine
-     runs from 10am to midnight, regular prizes can be won all day, scattered
-     at random, and the jackpot only between 5pm and 7pm.
+     Agreed 2026-09-16, on the day: the prize schedule starts at 11:35 (the
+     machine opened earlier, but the owner wanted the prizes spread from the
+     moment it went live, with nothing already waiting) and runs to midnight.
+     Regular prizes scattered at random; the jackpot only between 5pm and 7pm.
 
      start / end   — the iPad's own local time. Nothing is won before start.
                      CHANGE THESE if the event times change.
@@ -81,7 +82,7 @@ const CINNAMOOD_CONFIG = {
                      across this share of the day. It is cut into one equal
                      stretch per prize and each prize unlocks at a RANDOM
                      moment inside its stretch: evenly spread, unpredictable.
-                     0.88 of 10:00–24:00 ends the last stretch about 22:20,
+                     0.88 of 11:35–24:00 ends the last stretch about 22:35,
                      leaving time for anything still waiting. (0.93 was tried
                      first: the last prize could unlock near 23:00, and when
                      the crowd is mostly lunch and evening nobody was left to
@@ -110,7 +111,7 @@ const CINNAMOOD_CONFIG = {
                      tools/tests/prizes.test.js before changing any of these.
   ------------------------------------------------------------------------- */
   event: {
-    start: '2026-09-16T10:00',
+    start: '2026-09-16T11:35',
     end:   '2026-09-17T00:00',
     releaseSpan: 0.88,
     jackpotFrom: '2026-09-16T17:00',
